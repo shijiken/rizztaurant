@@ -1,40 +1,84 @@
-import React from 'react';
+// navigation/AppNavigator.tsx
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons'; // Import Ionicons
+import { Ionicons } from '@expo/vector-icons';
 
-
-
-import SettingsScreen from '../screens/SettingsScreen'; 
-import SwipeCardsScreen from '../screens/SwipeCards'; 
+// Import your screens
+import SettingsScreen from '../screens/SettingsScreen';
+import SwipeCardsScreen from '../screens/SwipeCards';
+import SavedRestaurantsScreen from '../screens/SavedRestaurantsScreen';
 
 const Tab = createBottomTabNavigator();
 
 function AppNavigator() {
+  // Central state to hold saved restaurants that can be accessed by multiple tabs
+  const [allSavedRestaurants, setAllSavedRestaurants] = useState<any[]>([]);
+
+  // Callback function to update the saved restaurants from SwipeCardsScreen
+  const handleUpdateSavedRestaurants = (newSavedList: any[]) => {
+    setAllSavedRestaurants(newSavedList);
+  };
+
   return (
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          headerShown: false, // Hide default header
+          headerShown: false, // Hide default header for all tabs
           tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-            if (route.name === 'Home') {
+            let iconName: keyof typeof Ionicons.glyphMap;
+
+            if (route.name === 'HomeTab') {
               iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Settings') {
+            } else if (route.name === 'SettingsTab') {
               iconName = focused ? 'settings' : 'settings-outline';
+            } else if (route.name === 'SavedTab') {
+              iconName = focused ? 'bookmark' : 'bookmark-outline';
+            } else {
+              iconName = 'help-circle-outline'; // Fallback icon
             }
 
-            // You can return any component that you like here!
-            return <Ionicons name={iconName} size={22} color={color} />;
+            return <Ionicons name={iconName} size={size} color={color} />;
           },
-          tabBarActiveTintColor: 'tomato', // Customize active tab color
-          tabBarInactiveTintColor: 'gray', // Customize inactive tab color
-          tabBarLabelStyle: { fontSize: 12 }, // Optional: style the text label
-          tabBarStyle: { paddingBottom: 5, height: 60 } // Optional: style the entire tab bar
+          tabBarActiveTintColor: 'tomato',
+          tabBarInactiveTintColor: 'gray',
+          tabBarLabelStyle: { fontSize: 12 },
+          tabBarStyle: { paddingBottom: 5, height: 60 }
         })}
       >
-        <Tab.Screen name="Home" component={SwipeCardsScreen} />
-        <Tab.Screen name="Settings" component={SettingsScreen} />
+        {/* Correct pattern: Pass the render function as children to Tab.Screen */}
+        <Tab.Screen
+          name="HomeTab"
+          options={{ title: 'Home' }}
+        >
+          {/* This function receives the navigation and route props automatically */}
+          {(props) => (
+            <SwipeCardsScreen
+              {...props}
+              onUpdateSavedRestaurants={handleUpdateSavedRestaurants}
+            />
+          )}
+        </Tab.Screen>
+
+        <Tab.Screen
+          name="SettingsTab"
+          options={{ title: 'Settings' }}
+          component={SettingsScreen} // SettingsScreen doesn't need custom props here, so component={...} is fine
+        />
+
+        {/* Correct pattern: Pass the render function as children to Tab.Screen */}
+        <Tab.Screen
+          name="SavedTab"
+          options={{ title: 'Saved' }}
+        >
+          {/* This function receives the navigation and route props automatically */}
+          {(props) => (
+            <SavedRestaurantsScreen
+              {...props}
+              savedRestaurants={allSavedRestaurants}
+            />
+          )}
+        </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );
