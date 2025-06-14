@@ -1,159 +1,250 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Linking, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Linking, Dimensions, Image } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  runOnJS
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+    withTiming,
+    runOnJS,
+    useDerivedValue,
 } from 'react-native-reanimated';
 
+// It's a good practice to define constants outside the component
 const SCREEN_WIDTH = Dimensions.get('window').width;
+const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
 
 const restaurants = [
-  { name: 'Pizza Heaven', address: '123 Main Street', mapsUrl: 'https://www.google.com/maps?q=Pizza+Heaven' },
-  { name: 'Sushi Palace', address: '456 Elm Street', mapsUrl: 'https://www.google.com/maps?q=Sushi+Palace' },
-  { name: 'Taco Fiesta', address: '789 Oak Avenue', mapsUrl: 'https://www.google.com/maps?q=Taco+Fiesta' }
+    {
+        name: 'Botak Jones',
+        address: '8 Jurong Town Hall Rd, #02-01',
+        mapsUrl: 'https://maps.app.goo.gl/example1',
+        imageUrl: 'https://danielfooddiary.com/wp-content/uploads/2021/06/botakjones11.jpg'
+    },
+    {
+        name: 'Mcdonalds Bukit Batok',
+        address: 'Blk 632 Bukit Batok Central 01-138',
+        mapsUrl: 'https://maps.app.goo.gl/example2',
+        imageUrl: 'https://mcdonaldsmenusg.com/wp-content/uploads/2023/12/McDonalds-Bukit-Batok.jpg'
+    },
+    {
+        name: 'Sanook Kitchen',
+        address: '1 Bt Batok Central, #03-03 West Mall',
+        mapsUrl: 'https://maps.app.goo.gl/example3',
+        imageUrl: 'https://ik.imagekit.io/zbv7hxlnw/googleMerchantImages/west-mall/west-mall-sanook-kitchen/00_undefined?tr=w-706%2Cq-70'
+    },
+    {
+        name: 'Burger King',
+        address: '2 Jurong East Central 1, #01-07',
+        mapsUrl: 'https://maps.app.goo.gl/example4',
+        imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBZP4ZR2B9BaUo5VX7BK9jZ5iyQOTQhlzAJQ&s'
+    },
+    {
+        name: 'KFC',
+        address: '1 Jurong West Central 2, #01-44',
+        mapsUrl: 'https://maps.app.goo.gl/example5',
+        imageUrl: 'https://sgeats.net/wp-content/uploads/2024/01/KFC-Jurong-Point.jpg'
+    },
 ];
 
 export default function SwipeCards() {
-  const [index, setIndex] = useState(0);
-  const translateX = useSharedValue(0);
-  const rotateZ = useSharedValue(0);
-  const nextCardScale = useSharedValue(0.8); // Start next card even smaller
-  const nextCardOpacity = useSharedValue(0); // Start next card completely transparent
+    // We'll manage a local version of the restaurants to remove swiped cards
+    const [cardStack, setCardStack] = useState(restaurants);
 
-  const handleSwipe = (direction: 'left' | 'right') => {
-    if (direction === 'right') {
-      console.log('Saved:', restaurants[index].name);
-    } else {
-      console.log('Discarded:', restaurants[index].name);
-    }
+    const translateX = useSharedValue(0);
+    const rotateZ = useSharedValue(0);
 
-    // Immediately animate the next card to its final state
-    // We can use withSpring here too for a more natural pop-in
-    nextCardScale.value = withSpring(1, { damping: 15, stiffness: 100 });
-    nextCardOpacity.value = withTiming(1, { duration: 250 }); // Slightly faster fade in
-
-    // The state update and reset happen after the top card finishes its exit animation
-    setTimeout(() => {
-      const newIndex = (index + 1) % restaurants.length;
-      setIndex(newIndex);
-      // Reset shared values for the *next* incoming card
-      translateX.value = 0;
-      rotateZ.value = 0;
-      nextCardScale.value = 0.8; // Reset for the new 'next' card
-      nextCardOpacity.value = 0; // Reset for the new 'next' card
-    }, 250); // Match or slightly less than the top card's exit animation
-  };
-
-  const pan = Gesture.Pan()
-    .onUpdate((event) => {
-      translateX.value = event.translationX;
-      rotateZ.value = event.translationX / 20;
-
-      // Animate next card to gradually appear and scale as current card is dragged
-      // This creates a smooth overlap
-      const progress = Math.abs(event.translationX) / (SCREEN_WIDTH / 2); // Calculate progress based on half screen width
-      nextCardOpacity.value = withTiming(Math.min(1, progress * 1.5), { duration: 0 }); // No duration, instant update based on drag
-      nextCardScale.value = withTiming(Math.min(1, 0.8 + progress * 0.2), { duration: 0 }); // Scale from 0.8 to 1
-    })
-    .onEnd(() => {
-      if (Math.abs(translateX.value) > 120) {
-        const direction = translateX.value > 0 ? 'right' : 'left';
-        const toValue = direction === 'right' ? SCREEN_WIDTH * 2 : -SCREEN_WIDTH * 2;
-
-        translateX.value = withTiming(toValue, { duration: 250 }, () => { // Faster exit duration
-          runOnJS(handleSwipe)(direction);
-        });
-      } else {
-        // If not swiped, spring back current card
-        translateX.value = withSpring(0, { damping: 12, stiffness: 100 });
-        rotateZ.value = withSpring(0, { damping: 12, stiffness: 100 });
-
-        // Spring back next card to its initial hidden state
-        nextCardScale.value = withSpring(0.8, { damping: 12, stiffness: 100 });
-        nextCardOpacity.value = withSpring(0, { damping: 12, stiffness: 100 });
-      }
+    // This derived value creates a smoother, more natural rotation effect
+    const animatedRotation = useDerivedValue(() => {
+        return (translateX.value / SCREEN_WIDTH) * 20;
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { rotateZ: `${rotateZ.value}deg` }
-    ]
-  }));
+    const onSwipe = (direction: 'left' | 'right') => {
+        const swipedRestaurant = cardStack[0];
+        if (direction === 'right') {
+            console.log('Saved:', swipedRestaurant.name);
+            // Here you would add the restaurant to a "saved" list
+        } else {
+            console.log('Discarded:', swipedRestaurant.name);
+        }
 
-  const nextCardAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: nextCardOpacity.value,
-    transform: [{ scale: nextCardScale.value }],
-  }));
+        // A more stable way to handle the state update
+        setCardStack((currentStack) => currentStack.slice(1));
+    };
 
-  const current = restaurants[index];
-  const next = restaurants[(index + 1) % restaurants.length];
+    const pan = Gesture.Pan()
+        .onUpdate((event) => {
+            translateX.value = event.translationX;
+            rotateZ.value = animatedRotation.value;
+        })
+        .onEnd((event) => {
+            if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
+                const direction = event.translationX > 0 ? 'right' : 'left';
+                const toValueX = Math.sign(event.translationX) * SCREEN_WIDTH * 1.5;
+                const toValueZ = Math.sign(event.translationX) * 45;
 
-  return (
-    <View style={styles.container}>
-      {/* Next card below with fade and scale transition */}
-      <Animated.View style={[styles.card, styles.nextCard, nextCardAnimatedStyle]}>
-        <Text style={styles.title}>{next.name}</Text>
-        <Text style={styles.address}>{next.address}</Text>
-        <Text style={styles.link} onPress={() => Linking.openURL(next.mapsUrl)}>
-          View on Google Maps
-        </Text>
-      </Animated.View>
+                translateX.value = withTiming(toValueX, { duration: 400 });
+                rotateZ.value = withTiming(toValueZ, { duration: 400 }, (isFinished) => {
+                    if (isFinished) {
+                        // This callback now safely triggers the state update
+                        // AFTER the card is fully off-screen.
+                        runOnJS(onSwipe)(direction);
+                    }
+                });
+            } else {
+                // Return card to center with a nice spring effect
+                translateX.value = withSpring(0, { damping: 12, stiffness: 100 });
+                rotateZ.value = withSpring(0, { damping: 12, stiffness: 100 });
+            }
+        });
+    
+    // Reset shared values when the card stack changes to prevent glitches
+    useEffect(() => {
+        translateX.value = 0;
+        rotateZ.value = 0;
+    }, [cardStack]);
 
-      {/* Top swipeable card */}
-      <GestureDetector gesture={pan}>
-        <Animated.View style={[styles.card, styles.topCard, animatedStyle]}>
-          <Text style={styles.title}>{current.name}</Text>
-          <Text style={styles.address}>{current.address}</Text>
-          <Text style={styles.link} onPress={() => Linking.openURL(current.mapsUrl)}>
-            View on Google Maps
-          </Text>
-        </Animated.View>
-      </GestureDetector>
-    </View>
-  );
+    // Animated style for the top card
+    const topCardAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [
+            { translateX: translateX.value },
+            { rotateZ: `${rotateZ.value}deg` },
+        ],
+    }));
+
+    // Animated styles for the cards underneath
+    const nextCardAnimatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [
+                {
+                    scale: withSpring(0.9 + Math.min(0.1, Math.abs(translateX.value / SCREEN_WIDTH) * 0.2)),
+                },
+            ],
+            opacity: withSpring(0.8 + Math.min(0.2, Math.abs(translateX.value / SCREEN_WIDTH))),
+        };
+    });
+
+    // We can even add a style for the third card for a deeper stack effect
+    const thirdCardAnimatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [
+                {
+                    scale: withSpring(0.8 + Math.min(0.1, Math.abs(translateX.value / SCREEN_WIDTH) * 0.2)),
+                },
+            ],
+             opacity: withSpring(0.6 + Math.min(0.2, Math.abs(translateX.value / SCREEN_WIDTH))),
+        };
+    });
+    
+    if (cardStack.length === 0) {
+        return (
+            <View style={styles.container}>
+                <Text style={styles.noMoreCardsText}>No more restaurants for now!</Text>
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.container}>
+            {cardStack.map((restaurant, index) => {
+                // We only render the top 3 cards for performance
+                if (index > 2) {
+                    return null;
+                }
+                
+                // Determine the style for each card in the stack
+                let animatedStyle;
+                if (index === 0) {
+                    animatedStyle = topCardAnimatedStyle;
+                } else if (index === 1) {
+                    animatedStyle = nextCardAnimatedStyle;
+                } else {
+                    animatedStyle = thirdCardAnimatedStyle;
+                }
+
+                const cardContent = (
+                    <>
+                        <Image source={{ uri: restaurant.imageUrl }} style={styles.cardImage} resizeMode="cover" />
+                        <View style={styles.textContainer}>
+                           <Text style={styles.title}>{restaurant.name}</Text>
+                           <Text style={styles.address}>{restaurant.address}</Text>
+                           <Text style={styles.link} onPress={() => Linking.openURL(restaurant.mapsUrl)}>
+                               View on Google Maps
+                           </Text>
+                        </View>
+                    </>
+                );
+
+                // The top card gets the gesture handler
+                if (index === 0) {
+                    return (
+                        <GestureDetector gesture={pan} key={restaurant.name}>
+                            <Animated.View style={[styles.card, {zIndex: cardStack.length - index}, animatedStyle]}>
+                                {cardContent}
+                            </Animated.View>
+                        </GestureDetector>
+                    );
+                }
+
+                return (
+                    <Animated.View style={[styles.card, {zIndex: cardStack.length - index}, animatedStyle]} key={restaurant.name}>
+                        {cardContent}
+                    </Animated.View>
+                );
+            }).reverse() /* Reverse to render the stack correctly */}
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ececec',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  card: {
-    width: SCREEN_WIDTH - 40,
-    padding: 20,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    position: 'absolute',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10
-  },
-  topCard: {
-    zIndex: 2
-  },
-  nextCard: {
-    zIndex: 1
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold'
-  },
-  address: {
-    fontSize: 16,
-    color: '#555',
-    marginVertical: 10
-  },
-  link: {
-    fontSize: 16,
-    color: '#007aff',
-    marginTop: 10
-  }
+    container: {
+        flex: 1,
+        backgroundColor: '#ececec',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    card: {
+        width: SCREEN_WIDTH - 40,
+        height: (SCREEN_WIDTH - 40) * 1.5, // Giving cards a consistent aspect ratio
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        position: 'absolute',
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 5 },
+        overflow: 'hidden',
+    },
+    cardImage: {
+        width: '100%',
+        height: '65%', // Allocate more space for the image
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+    },
+    textContainer: {
+      flex: 1,
+      padding: 15,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+    },
+    address: {
+        fontSize: 16,
+        color: '#555',
+        marginVertical: 10,
+    },
+    link: {
+        fontSize: 16,
+        color: '#007aff',
+        marginTop: 'auto', // Pushes the link to the bottom
+        paddingBottom: 10,
+    },
+    noMoreCardsText: {
+        fontSize: 20,
+        color: '#888',
+        textAlign: 'center',
+        padding: 20,
+    }
 });
