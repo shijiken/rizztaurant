@@ -20,7 +20,7 @@ const TopRightSavedButton: React.FC<TopRightSavedButtonProps> = ({ savedCount, o
 const styles = StyleSheet.create({
     topRightButton: {
         position: 'absolute',
-        top: 50,
+        top: 13,
         right: 20,
         flexDirection: 'row',
         alignItems: 'center',

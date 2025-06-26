@@ -1,4 +1,5 @@
-// app/screens/SwipeCardsScreen.tsx
+// src/app/(tabs)/index.tsx (formerly SwipeCards.tsx)
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -21,7 +22,7 @@ import Animated, {
   runOnJS,
   useDerivedValue,
 } from "react-native-reanimated";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native"; // Keep if you use navigation object directly
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import Card from "@/src/components/Card";
@@ -31,34 +32,35 @@ import TopRightSavedButton from "@/src/components/TopRightSavedButton";
 import { Restaurant } from "@/src/types/Restaurant";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { Redirect } from "expo-router";
+import { Redirect } from "expo-router"; // Keep if you use Redirect
+import { useRouter } from 'expo-router'; // Import useRouter for navigation to tabs
+
+// Import the useSavedRestaurants hook
+import { useSavedRestaurants } from "@/src/providers/SavedRestaurantsProvider"; // Adjust path if necessary
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
 
 const GOOGLE_PLACES_API_KEY = "AIzaSyBz74I__Xu--J7zj2RA0zhyuf9ausHLPZc"; // <<< REMEMBER TO REPLACE THIS
 
-interface SwipeCardsScreenProps {
-  navigation: any;
-  route: any;
-  onUpdateSavedRestaurants: (newSavedList: Restaurant[]) => void;
-}
 
-const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
-  navigation,
-  onUpdateSavedRestaurants,
-}) => {
+// Update the function signature to remove the onUpdateSavedRestaurants prop
+const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if navigation/route are truly used directly
   // --- All Hooks must be called unconditionally at the top level ---
-  // This ensures React's Rules of Hooks are followed and prevents the "change in order" error.
   const { session, loading: authLoading } = useAuth();
+  const router = useRouter(); // Initialize useRouter for navigation
+
+  // --- Use the useSavedRestaurants hook here ---
+  // Ensure you destructure addSavedRestaurant and removeSavedRestaurant from context
+  const { savedRestaurants, addSavedRestaurant, removeSavedRestaurant } = useSavedRestaurants();
+
 
   const [cardStack, setCardStack] = useState<Restaurant[]>([]);
   const [swipedHistory, setSwipedHistory] = useState<
     ({ direction: "left" | "right" } & Restaurant)[]
   >([]);
-  const [savedRestaurants, setSavedRestaurants] = useState<Restaurant[]>([]);
 
-  const [dataLoading, setDataLoading] = useState(true); // State for data fetching loading
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
@@ -330,7 +332,6 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
   );
 
   useEffect(() => {
-    // Only fetch location if authentication is not loading and session is present
     if (!authLoading && session) {
       const init = async () => {
         await getUserLocation();
@@ -340,7 +341,6 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
   }, [getUserLocation, authLoading, session]);
 
   useEffect(() => {
-    // Only fetch restaurants if userLocation is available, auth is not loading, and session exists
     if (userLocation && !authLoading && session) {
       fetchRestaurantsFromAPI(userLocation.latitude, userLocation.longitude);
     }
@@ -355,9 +355,11 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
       { ...swipedRestaurant, direction },
     ]);
     if (direction === "right") {
-      const newSaved = [...savedRestaurants, swipedRestaurant];
-      setSavedRestaurants(newSaved);
-      onUpdateSavedRestaurants(newSaved);
+      // Use the addSavedRestaurant from context
+      addSavedRestaurant(swipedRestaurant); // <--- Correctly uses context
+      // REMOVE THE FOLLOWING REDUNDANT LINES:
+      // setSavedRestaurants(newSaved);
+      // onUpdateSavedRestaurants(newSaved);
     }
     setCardStack((currentStack) => currentStack.slice(1));
   };
@@ -398,9 +400,12 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
       setCardStack((prev) => [lastSwiped, ...prev]);
 
       if (lastSwiped.direction === "right") {
-        const newSaved = savedRestaurants.filter((r) => r.id !== lastSwiped.id);
-        setSavedRestaurants(newSaved);
-        onUpdateSavedRestaurants(newSaved);
+        // Use the removeSavedRestaurant from context
+        removeSavedRestaurant(lastSwiped.id); // <--- Correctly uses context
+        // REMOVE THE FOLLOWING REDUNDANT LINES:
+        // const newSaved = savedRestaurants.filter((r) => r.id !== lastSwiped.id);
+        // setSavedRestaurants(newSaved);
+        // onUpdateSavedRestaurants(newSaved);
       }
       translateX.value = withSpring(0, { damping: 12, stiffness: 100 });
       rotateZ.value = withSpring(0, { damping: 12, stiffness: 100 });
@@ -432,11 +437,12 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
   };
 
   const handleNavigateToSaved = () => {
-    navigation.navigate("SavedTab");
+    // Use useRouter for navigation in Expo Router
+    router.navigate('/(tabs)/SavedRestaurants'); // <--- Correct Expo Router navigation
   };
 
   useEffect(() => {
-    if (cardStack.length > 0) { // Only reset if there are cards to show
+    if (cardStack.length > 0) {
       translateX.value = 0;
       rotateZ.value = 0;
     }
@@ -481,7 +487,6 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
 
   // --- Conditional Render Logic (after all Hooks are called) ---
 
-  // 1. Handle authentication loading state
   if (authLoading) {
     return (
       <View style={styles.statusContainer}>
@@ -491,12 +496,10 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
     );
   }
 
-  // 2. Handle unauthenticated user redirection
   if (!session) {
     return <Redirect href={"/(auth)/sign-in"} />;
   }
 
-  // 3. Handle data loading state (after auth is confirmed)
   if (dataLoading) {
     return (
       <View style={styles.statusContainer}>
@@ -506,7 +509,6 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
     );
   }
 
-  // 4. Handle errors during data fetching
   if (error) {
     return (
       <View style={styles.statusContainer}>
@@ -519,17 +521,15 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
     );
   }
 
-  // 5. Handle no more cards (after all other loading/error states)
   if (cardStack.length === 0) {
     return <NoMoreCards />;
   }
 
-  // 6. Main render method for when data is ready and cards exist
   return (
     <View style={styles.container}>
       {cardStack
           .map((restaurant, index) => {
-            if (index > 2) return null; // Only render the top 3 cards for performance/visuals
+            if (index > 2) return null;
 
             const animatedStyle =
               index === 0
@@ -542,7 +542,7 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
               <Animated.View
                 style={[
                   styles.card,
-                  { zIndex: cardStack.length - index }, // Ensure correct stacking order
+                  { zIndex: cardStack.length - index },
                   animatedStyle,
                 ]}
                 key={restaurant.id}
@@ -554,7 +554,6 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
               </Animated.View>
             );
 
-            // Only the top card should be interactive with GestureDetector
             return index === 0 ? (
               <GestureDetector gesture={pan} key={restaurant.id}>
                 {card}
@@ -563,7 +562,7 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
               card
             );
           })
-          .reverse() // Reverse to render the top card last, making it appear on top
+          .reverse()
       }
 
       <SwipeButtons
@@ -574,63 +573,61 @@ const SwipeCardsScreen: React.FC<SwipeCardsScreenProps> = ({
         canSwipe={cardStack.length > 0 && !dataLoading && !error}
       />
 
-      {cardStack.length > 0 && ( // Only show the saved button if there are cards (or potential cards)
+      {cardStack.length > 0 && (
         <TopRightSavedButton
           savedCount={savedRestaurants.length}
           onPress={handleNavigateToSaved}
         />
       )}
-      <Button onPress={() => supabase.auth.signOut()} title="Sign out" />
     </View>
   );
 };
 
+export default SwipeCardsScreen;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ececec",
-    justifyContent: "center",
     alignItems: "center",
-    paddingBottom: 100, // Adjust this if buttons are hidden
-  },
-  card: {
-    width: SCREEN_WIDTH - 40,
-    height: (SCREEN_WIDTH - 40) * 1.5,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    position: "absolute",
-    elevation: 5, // Android shadow
-    shadowColor: "#000", // iOS shadow
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    overflow: "hidden", // Ensures content stays within rounded corners
+    justifyContent: "center",
+    paddingTop: Platform.OS === "android" ? 25 : 0, // Add padding for Android status bar
   },
   statusContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
   },
   statusText: {
-    fontSize: 18,
+    marginTop: 10,
+    fontSize: 16,
     color: "#555",
-    marginTop: 15,
-    textAlign: "center",
   },
   errorText: {
-    fontSize: 18,
+    marginTop: 10,
+    fontSize: 16,
     color: "#FF6347",
-    marginTop: 15,
     textAlign: "center",
-    fontWeight: "bold",
+    marginHorizontal: 20,
   },
   retryText: {
+    marginTop: 5,
     fontSize: 14,
     color: "#888",
-    marginTop: 5,
     textAlign: "center",
+    marginHorizontal: 20,
+  },
+  card: {
+    position: "absolute",
+    width: SCREEN_WIDTH * 0.9,
+    top: 70,
+    height: "70%",
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "white",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });
-
-export default SwipeCardsScreen;

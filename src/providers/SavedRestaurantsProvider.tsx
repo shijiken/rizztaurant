@@ -30,12 +30,14 @@ export default function SavedRestaurantsProvider({
   // Function to add a single restaurant
   const addSavedRestaurant = useCallback((restaurant: Restaurant) => {
     setSavedRestaurants((prev) => {
-      // Prevent duplicates
+      // Log before update
+      console.log("addSavedRestaurant: Current saved restaurants (before check):", prev.map(r => r.name));
       if (!prev.some(r => r.id === restaurant.id)) {
         const newState = [...prev, restaurant];
-        console.log("SavedRestaurantsProvider - Added:", restaurant.name);
+        console.log("addSavedRestaurant: ADDING", restaurant.name, "New state:", newState.map(r => r.name));
         return newState;
       }
+      console.log("addSavedRestaurant: SKIPPING (duplicate)", restaurant.name);
       return prev;
     });
   }, []);
