@@ -32,11 +32,11 @@ export default function TabLayout() {
         headerShown: useClientOnlyValue(false, true), // header shown if not on web client
       }}
     >
-      {/* Tab for SwipeCardsScreen (now SwipeCards.tsx) */}
+      {/* Tab for SwipeCardsScreen (now index.tsx) */}
       <Tabs.Screen
-        name="SwipeCards" // Matches the filename src/app/(tabs)/SwipeCards.tsx
+        name="index" // Matches the filename src/app/(tabs)/SwipeCards.tsx
         options={{
-          title: "Swipe", // Matches your old "SwipeTab" title
+          title: "Discover", 
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
               name={focused ? "restaurant" : "restaurant-outline"}
@@ -45,7 +45,7 @@ export default function TabLayout() {
           ),
           // You can add header options specific to this tab if needed
           headerShown: true, // Example: Show header on this tab
-          headerTitle: "Discover Restaurants",
+          headerTitle: "Discover",
         }}
       />
 

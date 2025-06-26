@@ -1,5 +1,5 @@
 // app/screens/SavedRestaurants.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Restaurant } from '@/src/types/Restaurant';
@@ -7,29 +7,58 @@ import { Restaurant } from '@/src/types/Restaurant';
 // Import the useSavedRestaurants hook from your context
 import { useSavedRestaurants } from '@/src/providers/SavedRestaurantsProvider'; 
 
-
-const SavedRestaurantsScreen: React.FC = () => { 
-
-    const { savedRestaurants, removeSavedRestaurant } = useSavedRestaurants(); // <--- This is the key change
+const SavedRestaurantsScreen: React.FC = () => {
+    const { savedRestaurants, removeSavedRestaurant } = useSavedRestaurants();
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [restaurantToRemove, setRestaurantToRemove] = useState<string | null>(null);
 
+    // Logs whenever savedRestaurants updates on this screen
+    useEffect(() => {
+        console.log("SavedRestaurantsScreen - savedRestaurants UPDATED!");
+        console.log("  Current count:", savedRestaurants.length);
+        console.log("  Names in list:", savedRestaurants.map(r => r.name));
+    }, [savedRestaurants]);
+
     // Function to open the confirmation modal
-    const handleRemoveSaved = (idToRemove: string) => {
-        setRestaurantToRemove(idToRemove);
+    const handleRemoveSaved = (uniqueIdToRemove: string) => {
+        console.log("SavedRestaurantsScreen - handleRemoveSaved called for uniqueId:", uniqueIdToRemove);
+        setRestaurantToRemove(uniqueIdToRemove);
         setShowConfirmModal(true);
     };
 
-
     const confirmRemove = () => {
         if (restaurantToRemove) {
-            // Use the removeSavedRestaurant function obtained from context
-            removeSavedRestaurant(restaurantToRemove); // Call the context function directly
+            console.log("SavedRestaurantsScreen - confirmRemove: Attempting to remove uniqueId:", restaurantToRemove);
+            removeSavedRestaurant(restaurantToRemove); // Call the context function
             setRestaurantToRemove(null);
         }
         setShowConfirmModal(false);
     };
+
+
+// const SavedRestaurantsScreen: React.FC = () => { 
+
+//     const { savedRestaurants, removeSavedRestaurant } = useSavedRestaurants(); // <--- This is the key change
+
+//     const [showConfirmModal, setShowConfirmModal] = useState(false);
+//     const [restaurantToRemove, setRestaurantToRemove] = useState<string | null>(null);
+
+//     // Function to open the confirmation modal
+//     const handleRemoveSaved = (idToRemove: string) => {
+//         setRestaurantToRemove(idToRemove);
+//         setShowConfirmModal(true);
+//     };
+
+
+//     const confirmRemove = () => {
+//         if (restaurantToRemove) {
+//             // Use the removeSavedRestaurant function obtained from context
+//             removeSavedRestaurant(restaurantToRemove); // Call the context function directly
+//             setRestaurantToRemove(null);
+//         }
+//         setShowConfirmModal(false);
+//     };
 
     // Function to cancel removal from modal
     const cancelRemove = () => {
@@ -55,7 +84,6 @@ const SavedRestaurantsScreen: React.FC = () => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.header}>Your Saved Restaurants</Text>
             {/* Now savedRestaurants is correctly from context and initialized as an empty array */}
             {savedRestaurants.length === 0 ? ( // This line should now work correctly
                 <View style={styles.emptyContainer}>
@@ -102,7 +130,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#ececec',
-        paddingTop: 60,
+        paddingTop: 30,
     },
     header: {
         fontSize: 28,
