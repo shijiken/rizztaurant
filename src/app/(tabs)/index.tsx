@@ -1,4 +1,4 @@
-// src/app/(tabs)/index.tsx (formerly SwipeCards.tsx)
+// src/app/(tabs)/index.tsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -10,7 +10,6 @@ import {
   Alert,
   PermissionsAndroid,
   Platform,
-  Linking,
   Button,
 } from "react-native";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
@@ -22,7 +21,6 @@ import Animated, {
   runOnJS,
   useDerivedValue,
 } from "react-native-reanimated";
-import { useNavigation } from "@react-navigation/native"; // Keep if you use navigation object directly
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import Card from "@/src/components/Card";
@@ -32,28 +30,21 @@ import TopRightSavedButton from "@/src/components/TopRightSavedButton";
 import { Restaurant } from "@/src/types/Restaurant";
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { Redirect } from "expo-router"; // Keep if you use Redirect
-import { useRouter } from 'expo-router'; // Import useRouter for navigation to tabs
+import { Redirect } from "expo-router";
+import { useRouter } from 'expo-router';
 
-// Import the useSavedRestaurants hook
-import { useSavedRestaurants } from "@/src/providers/SavedRestaurantsProvider"; // Adjust path if necessary
+import { useSavedRestaurants } from "@/src/providers/SavedRestaurantsProvider";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
 
 const GOOGLE_PLACES_API_KEY = "AIzaSyBz74I__Xu--J7zj2RA0zhyuf9ausHLPZc"; // <<< REMEMBER TO REPLACE THIS
 
-
-// Update the function signature to remove the onUpdateSavedRestaurants prop
-const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if navigation/route are truly used directly
-  // --- All Hooks must be called unconditionally at the top level ---
+const SwipeCardsScreen: React.FC = () => {
   const { session, loading: authLoading } = useAuth();
-  const router = useRouter(); // Initialize useRouter for navigation
+  const router = useRouter();
 
-  // --- Use the useSavedRestaurants hook here ---
-  // Ensure you destructure addSavedRestaurant and removeSavedRestaurant from context
   const { savedRestaurants, addSavedRestaurant, removeSavedRestaurant } = useSavedRestaurants();
-
 
   const [cardStack, setCardStack] = useState<Restaurant[]>([]);
   const [swipedHistory, setSwipedHistory] = useState<
@@ -103,7 +94,6 @@ const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if nav
       }
       return true;
     } else {
-      // Android
       try {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
@@ -149,6 +139,7 @@ const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if nav
     } catch (err: any) {
       setError(
         `Error getting location: ${err.message}. Please enable location services and try again.`
+
       );
       console.error(err);
       setDataLoading(false);
@@ -174,34 +165,11 @@ const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if nav
 
   const getCuisineFromTypes = (types: string[]): string | undefined => {
     const cuisineKeywords = [
-      "japanese",
-      "italian",
-      "indian",
-      "chinese",
-      "thai",
-      "mexican",
-      "american",
-      "french",
-      "mediterranean",
-      "korean",
-      "vietnamese",
-      "sushi",
-      "pizza",
-      "burger",
-      "seafood",
-      "steak_house",
-      "barbecue",
-      "vegan",
-      "vegetarian",
-      "cafe",
-      "bakery",
-      "dessert",
-      "deli",
-      "fast_food",
-      "asian",
-      "brazilian",
-      "greek",
-      "middle_eastern",
+      "japanese", "italian", "indian", "chinese", "thai", "mexican", "american",
+      "french", "mediterranean", "korean", "vietnamese", "sushi", "pizza",
+      "burger", "seafood", "steak_house", "barbecue", "vegan", "vegetarian",
+      "cafe", "bakery", "dessert", "deli", "fast_food", "asian", "brazilian",
+      "greek", "middle_eastern",
     ];
     for (const type of types) {
       const matchingKeyword = cuisineKeywords.find((kw) => type.includes(kw));
@@ -355,11 +323,7 @@ const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if nav
       { ...swipedRestaurant, direction },
     ]);
     if (direction === "right") {
-      // Use the addSavedRestaurant from context
-      addSavedRestaurant(swipedRestaurant); // <--- Correctly uses context
-      // REMOVE THE FOLLOWING REDUNDANT LINES:
-      // setSavedRestaurants(newSaved);
-      // onUpdateSavedRestaurants(newSaved);
+      addSavedRestaurant(swipedRestaurant);
     }
     setCardStack((currentStack) => currentStack.slice(1));
   };
@@ -400,12 +364,7 @@ const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if nav
       setCardStack((prev) => [lastSwiped, ...prev]);
 
       if (lastSwiped.direction === "right") {
-        // Use the removeSavedRestaurant from context
-        removeSavedRestaurant(lastSwiped.id); // <--- Correctly uses context
-        // REMOVE THE FOLLOWING REDUNDANT LINES:
-        // const newSaved = savedRestaurants.filter((r) => r.id !== lastSwiped.id);
-        // setSavedRestaurants(newSaved);
-        // onUpdateSavedRestaurants(newSaved);
+        removeSavedRestaurant(lastSwiped.name);
       }
       translateX.value = withSpring(0, { damping: 12, stiffness: 100 });
       rotateZ.value = withSpring(0, { damping: 12, stiffness: 100 });
@@ -437,8 +396,7 @@ const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if nav
   };
 
   const handleNavigateToSaved = () => {
-    // Use useRouter for navigation in Expo Router
-    router.navigate('/(tabs)/SavedRestaurants'); // <--- Correct Expo Router navigation
+    router.navigate('/(tabs)/SavedRestaurants');
   };
 
   useEffect(() => {
@@ -485,8 +443,6 @@ const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if nav
     };
   });
 
-  // --- Conditional Render Logic (after all Hooks are called) ---
-
   if (authLoading) {
     return (
       <View style={styles.statusContainer}>
@@ -525,45 +481,66 @@ const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if nav
     return <NoMoreCards />;
   }
 
+  // --- Render the cards ---
+  // The top card is interactive, subsequent cards are static background
+  const topCard = cardStack[0];
+  const nextCard = cardStack[1];
+  const thirdCard = cardStack[2];
+
   return (
     <View style={styles.container}>
-      {cardStack
-          .map((restaurant, index) => {
-            if (index > 2) return null;
+      {/* GestureDetector must wrap a single view.
+          We will place the top card inside it, and subsequent cards behind it.
+      */}
+      <GestureDetector gesture={pan}>
+        <Animated.View
+          style={[
+            styles.card,
+            { zIndex: 3 }, // Ensure the top card is always on top
+            topCardAnimatedStyle,
+          ]}
+          key={topCard.id} // Use the key of the top card for GestureDetector's child
+        >
+          <Card
+            restaurant={topCard}
+            getPriceLevelString={getPriceLevelString}
+          />
+        </Animated.View>
+      </GestureDetector>
 
-            const animatedStyle =
-              index === 0
-                ? topCardAnimatedStyle
-                : index === 1
-                ? nextCardAnimatedStyle
-                : thirdCardAnimatedStyle;
+      {/* Render the next card behind the top card */}
+      {nextCard && (
+        <Animated.View
+          style={[
+            styles.card,
+            { zIndex: 2 }, // Behind the top card
+            nextCardAnimatedStyle,
+          ]}
+          key={nextCard.id}
+        >
+          <Card
+            restaurant={nextCard}
+            getPriceLevelString={getPriceLevelString}
+          />
+        </Animated.View>
+      )}
 
-            const card = (
-              <Animated.View
-                style={[
-                  styles.card,
-                  { zIndex: cardStack.length - index },
-                  animatedStyle,
-                ]}
-                key={restaurant.id}
-              >
-                <Card
-                  restaurant={restaurant}
-                  getPriceLevelString={getPriceLevelString}
-                />
-              </Animated.View>
-            );
-
-            return index === 0 ? (
-              <GestureDetector gesture={pan} key={restaurant.id}>
-                {card}
-              </GestureDetector>
-            ) : (
-              card
-            );
-          })
-          .reverse()
-      }
+      {/* Render the third card behind the next card */}
+      {thirdCard && (
+        <Animated.View
+          style={[
+            styles.card,
+            { zIndex: 1 }, // Behind the next card
+            thirdCardAnimatedStyle,
+          ]}
+          key={thirdCard.id}
+        >
+          <Card
+            restaurant={thirdCard}
+            getPriceLevelString={getPriceLevelString}
+          />
+        </Animated.View>
+      )}
 
       <SwipeButtons
         onUndo={handleUndo}
@@ -579,6 +556,7 @@ const SwipeCardsScreen: React.FC = () => { // Removed props here, or keep if nav
           onPress={handleNavigateToSaved}
         />
       )}
+      <Button onPress={() => supabase.auth.signOut()} title="Sign out" />
     </View>
   );
 };
@@ -590,7 +568,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: Platform.OS === "android" ? 25 : 0, // Add padding for Android status bar
+    paddingTop: Platform.OS === "android" ? 25 : 0,
   },
   statusContainer: {
     flex: 1,
@@ -619,7 +597,7 @@ const styles = StyleSheet.create({
   card: {
     position: "absolute",
     width: SCREEN_WIDTH * 0.9,
-    top: 70,
+    top: 70, // Adjust as needed to position the card
     height: "70%",
     borderRadius: 20,
     overflow: "hidden",
@@ -629,5 +607,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  restaurantImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 10,
+    marginBottom: 10,
+    resizeMode: 'cover',
   },
 });
