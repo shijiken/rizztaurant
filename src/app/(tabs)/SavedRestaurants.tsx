@@ -1,91 +1,71 @@
-// app/screens/SavedRestaurants.tsx
-import React, { useEffect, useState } from 'react';
+// src/app/screens/SavedRestaurants.tsx
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Restaurant } from '@/src/types/Restaurant';
-
-// Import the useSavedRestaurants hook from your context
-import { useSavedRestaurants } from '@/src/providers/SavedRestaurantsProvider'; 
+import { useSavedRestaurants } from '@/src/providers/SavedRestaurantsProvider';
 
 const SavedRestaurantsScreen: React.FC = () => {
+    // Destructure removeSavedRestaurant to accept name for now
     const { savedRestaurants, removeSavedRestaurant } = useSavedRestaurants();
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [restaurantToRemove, setRestaurantToRemove] = useState<string | null>(null);
+    // Change state to hold both ID and Name for context
+    const [restaurantToRemove, setRestaurantToRemove] = useState<{ id: string | undefined; name: string } | null>(null);
 
-    // Logs whenever savedRestaurants updates on this screen
     useEffect(() => {
-        console.log("SavedRestaurantsScreen - savedRestaurants UPDATED!");
-        console.log("  Current count:", savedRestaurants.length);
-        console.log("  Names in list:", savedRestaurants.map(r => r.name));
     }, [savedRestaurants]);
 
-    // Function to open the confirmation modal
-    const handleRemoveSaved = (uniqueIdToRemove: string) => {
-        console.log("SavedRestaurantsScreen - handleRemoveSaved called for uniqueId:", uniqueIdToRemove);
-        setRestaurantToRemove(uniqueIdToRemove);
+    // Function to open the confirmation modal - now accepts both ID and Name
+    const handleRemoveSaved = (item: Restaurant) => {
+        // Store both ID and Name for the modal
+        setRestaurantToRemove({ id: item.id, name: item.name });
         setShowConfirmModal(true);
     };
 
     const confirmRemove = () => {
         if (restaurantToRemove) {
-            console.log("SavedRestaurantsScreen - confirmRemove: Attempting to remove uniqueId:", restaurantToRemove);
-            removeSavedRestaurant(restaurantToRemove); // Call the context function
+            console.log("SavedRestaurantsScreen - confirmRemove: Attempting to remove by name:", restaurantToRemove.name);
+            // Call removeSavedRestaurant with the name for now
+            removeSavedRestaurant(restaurantToRemove.name); // <--- CHANGED HERE
             setRestaurantToRemove(null);
         }
         setShowConfirmModal(false);
     };
 
-
-// const SavedRestaurantsScreen: React.FC = () => { 
-
-//     const { savedRestaurants, removeSavedRestaurant } = useSavedRestaurants(); // <--- This is the key change
-
-//     const [showConfirmModal, setShowConfirmModal] = useState(false);
-//     const [restaurantToRemove, setRestaurantToRemove] = useState<string | null>(null);
-
-//     // Function to open the confirmation modal
-//     const handleRemoveSaved = (idToRemove: string) => {
-//         setRestaurantToRemove(idToRemove);
-//         setShowConfirmModal(true);
-//     };
-
-
-//     const confirmRemove = () => {
-//         if (restaurantToRemove) {
-//             // Use the removeSavedRestaurant function obtained from context
-//             removeSavedRestaurant(restaurantToRemove); // Call the context function directly
-//             setRestaurantToRemove(null);
-//         }
-//         setShowConfirmModal(false);
-//     };
-
-    // Function to cancel removal from modal
     const cancelRemove = () => {
         setRestaurantToRemove(null);
         setShowConfirmModal(false);
     };
 
-    const renderItem = ({ item }: { item: Restaurant }) => (
-        <View style={styles.listItem}>
-            <View style={styles.itemContent}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemAddress}>{item.address}</Text>
-                <TouchableOpacity style={styles.linkButton} onPress={() => Linking.openURL(item.mapsUrl)}>
-                    <Ionicons name="map" size={16} color="#007aff" />
-                    <Text style={styles.itemLink}>View on Maps</Text>
+    const renderItem = ({ item }: { item: Restaurant }) => {    
+        return (
+            <View style={styles.listItem}>
+                <View style={styles.itemContent}>
+                    <Text style={styles.itemName}>
+                        {typeof item.name === 'string' ? item.name : 'Unnamed Restaurant'}
+                    </Text>
+                    <Text style={styles.itemAddress}>
+                        {typeof item.address === 'string' ? item.address : 'No address available'}
+                    </Text>
+                    {item.mapsUrl && (
+                        <TouchableOpacity style={styles.linkButton} onPress={() => Linking.openURL(item.mapsUrl)}>
+                            <Ionicons name="map" size={16} color="#007aff" />
+                            <Text style={styles.itemLink}>View on Maps</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+                <TouchableOpacity onPress={() => handleRemoveSaved(item)} style={styles.removeButton}>
+                    <Ionicons name="trash-outline" size={24} color="#FF6347" />
                 </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => handleRemoveSaved(item.id)} style={styles.removeButton}>
-                <Ionicons name="trash-outline" size={24} color="#FF6347" />
-            </TouchableOpacity>
-        </View>
-    );
+        );
+    };
 
     return (
         <View style={styles.container}>
-            {/* Now savedRestaurants is correctly from context and initialized as an empty array */}
-            {savedRestaurants.length === 0 ? ( // This line should now work correctly
+            <Text style={styles.header}>Your Saved Restaurants</Text>
+            {savedRestaurants.length === 0 ? (
                 <View style={styles.emptyContainer}>
                     <Ionicons name="bookmark-outline" size={60} color="#ccc" />
                     <Text style={styles.emptyText}>No saved restaurants yet.</Text>
@@ -94,13 +74,14 @@ const SavedRestaurantsScreen: React.FC = () => {
             ) : (
                 <FlatList
                     data={savedRestaurants}
-                    keyExtractor={(item) => item.id}
+                    // IMPORTANT: Using name + index for keyExtractor as a temporary measure
+                    // until item.id (Google Place ID) is correctly populated.
+                    keyExtractor={(item, index) => `${item.id || 'no_id'}_${index}`}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContentContainer}
                 />
             )}
 
-            {/* Custom Confirmation Modal */}
             <Modal
                 animationType="fade"
                 transparent={true}
@@ -108,14 +89,14 @@ const SavedRestaurantsScreen: React.FC = () => {
                 onRequestClose={cancelRemove}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>Remove Restaurant</Text>
-                        <Text style={styles.modalMessage}>Are you sure you want to remove this restaurant from your saved list?</Text>
-                        <View style={styles.modalButtonContainer}>
-                            <TouchableOpacity style={[styles.modalButton, styles.modalButtonCancel]} onPress={cancelRemove}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Confirm Removal</Text>
+                        <Text style={styles.modalMessage}>Are you sure you want to remove "{restaurantToRemove?.name ?? ''}"?</Text>
+                            <View style={styles.modalButtonContainer}>
+                            <TouchableOpacity onPress={cancelRemove} style={[styles.modalButton, styles.modalButtonCancel]}>
                                 <Text style={styles.modalButtonText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalButton, styles.modalButtonRemove]} onPress={confirmRemove}>
+                            <TouchableOpacity onPress={confirmRemove} style={[styles.modalButton, styles.modalButtonConfirm]}>
                                 <Text style={styles.modalButtonText}>Remove</Text>
                             </TouchableOpacity>
                         </View>
@@ -129,15 +110,15 @@ const SavedRestaurantsScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#ececec',
-        paddingTop: 30,
+        padding: 16,
+        backgroundColor: '#f8f8f8',
     },
     header: {
         fontSize: 28,
         fontWeight: 'bold',
+        marginBottom: 20,
         color: '#333',
         textAlign: 'center',
-        marginBottom: 20,
     },
     emptyContainer: {
         flex: 1,
@@ -146,38 +127,35 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     emptyText: {
-        fontSize: 20,
+        fontSize: 18,
         color: '#888',
         marginTop: 10,
         textAlign: 'center',
     },
     emptySubText: {
-        fontSize: 16,
+        fontSize: 14,
         color: '#aaa',
         marginTop: 5,
         textAlign: 'center',
     },
     listContentContainer: {
-        paddingHorizontal: 10,
         paddingBottom: 20,
     },
     listItem: {
         flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor: '#fff',
         borderRadius: 10,
         padding: 15,
         marginBottom: 10,
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        elevation: 2,
         shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 5,
         shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
     },
     itemContent: {
         flex: 1,
-        marginRight: 10,
     },
     itemName: {
         fontSize: 18,
@@ -187,7 +165,7 @@ const styles = StyleSheet.create({
     itemAddress: {
         fontSize: 14,
         color: '#666',
-        marginTop: 5,
+        marginTop: 4,
     },
     linkButton: {
         flexDirection: 'row',
@@ -201,9 +179,10 @@ const styles = StyleSheet.create({
         textDecorationLine: 'underline',
     },
     removeButton: {
-        padding: 8,
+        padding: 10,
         borderRadius: 5,
         backgroundColor: '#ffe5e5',
+        marginLeft: 10,
     },
     modalOverlay: {
         flex: 1,
@@ -211,29 +190,31 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
-    modalContainer: {
-        width: '80%',
-        backgroundColor: 'white',
-        borderRadius: 10,
-        padding: 20,
+    modalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 15,
+        padding: 25,
         alignItems: 'center',
         elevation: 10,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 5,
+        width: '80%',
+        maxWidth: 350,
     },
     modalTitle: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: 'bold',
-        marginBottom: 10,
+        marginBottom: 15,
         color: '#333',
     },
     modalMessage: {
         fontSize: 16,
+        color: '#555',
         textAlign: 'center',
-        marginBottom: 20,
-        color: '#666',
+        marginBottom: 25,
+        lineHeight: 22,
     },
     modalButtonContainer: {
         flexDirection: 'row',
@@ -241,23 +222,22 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     modalButton: {
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 25,
+        borderRadius: 10,
         minWidth: 100,
         alignItems: 'center',
-        justifyContent: 'center',
     },
     modalButtonCancel: {
-        backgroundColor: '#ccc',
+        backgroundColor: '#e0e0e0',
     },
-    modalButtonRemove: {
+    modalButtonConfirm: {
         backgroundColor: '#FF6347',
     },
     modalButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
         fontSize: 16,
+        fontWeight: 'bold',
+        color: '#fff',
     },
 });
 
