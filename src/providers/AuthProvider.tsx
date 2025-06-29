@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthData>({
 export default function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true); // Initial state is true
+  const [loading, setLoading] = useState(true);
 
   const router = useRouter();
   const segments = useSegments();

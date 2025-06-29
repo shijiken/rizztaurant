@@ -6,16 +6,15 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { SplashScreen, Stack } from "expo-router"; // Keep Stack here if other Stack.Screens are added later in this file
+import { SplashScreen, Stack } from "expo-router"; 
 import { useEffect } from "react";
 import { useColorScheme } from "react-native";
-import AuthProvider from "../providers/AuthProvider"; // Only AuthProvider, useAuth is used in InnerAppNavigator
+import AuthProvider from "../providers/AuthProvider"; 
 import SavedRestaurantsProvider from "../providers/SavedRestaurantsProvider";
 import React from "react";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View, ActivityIndicator, Text } from 'react-native'; // Keep these imports if you use them elsewhere or remove if not needed
 
-import InnerAppNavigator from '../components/InnerAppNavigator'; // <--- NEW IMPORT
+import InnerAppNavigator from '../components/InnerAppNavigator'; 
 
 export {
   ErrorBoundary,

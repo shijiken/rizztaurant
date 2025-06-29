@@ -11,6 +11,7 @@ import {
   PermissionsAndroid,
   Platform,
   Button,
+  TouchableOpacity,
 } from "react-native";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -28,7 +29,6 @@ import SwipeButtons from "@/src/components/SwipeButtons";
 import NoMoreCards from "@/src/components/NoMoreCards";
 import TopRightSavedButton from "@/src/components/TopRightSavedButton";
 import { Restaurant } from "@/src/types/Restaurant";
-import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { Redirect } from "expo-router";
 import { useRouter } from 'expo-router';
@@ -38,7 +38,7 @@ import { useSavedRestaurants } from "@/src/providers/SavedRestaurantsProvider";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
 
-const GOOGLE_PLACES_API_KEY = "AIzaSyBz74I__Xu--J7zj2RA0zhyuf9ausHLPZc"; // <<< REMEMBER TO REPLACE THIS
+const GOOGLE_PLACES_API_KEY = "AIzaSyBGO6faoGcKdfhSkwY_1IfCJUe7Htgpq5s"; 
 
 const SwipeCardsScreen: React.FC = () => {
   const { session, loading: authLoading } = useAuth();
@@ -163,24 +163,32 @@ const SwipeCardsScreen: React.FC = () => {
     }
   };
 
-  const getCuisineFromTypes = (types: string[]): string | undefined => {
-    const cuisineKeywords = [
-      "japanese", "italian", "indian", "chinese", "thai", "mexican", "american",
-      "french", "mediterranean", "korean", "vietnamese", "sushi", "pizza",
-      "burger", "seafood", "steak_house", "barbecue", "vegan", "vegetarian",
-      "cafe", "bakery", "dessert", "deli", "fast_food", "asian", "brazilian",
-      "greek", "middle_eastern",
+  const formatCuisineFromTypes = (types: string[]): string | undefined => {
+    if (!types || types.length === 0) return undefined;
+  
+    const preferredTypes = [
+      // Prioritize cuisine types
+      "acai_shop", "afghani_restaurant", "african_restaurant", "american_restaurant", "asian_restaurant",
+      "bagel_shop", "bakery", "bar", "bar_and_grill", "barbecue_restaurant", "brazilian_restaurant",
+      "breakfast_restaurant", "brunch_restaurant", "buffet_restaurant", "cafe", "cafeteria", "candy_store",
+      "cat_cafe", "chinese_restaurant", "chocolate_factory", "chocolate_shop", "coffee_shop", "confectionery",
+      "deli", "dessert_restaurant", "dessert_shop", "diner", "dog_cafe", "donut_shop", "fast_food_restaurant",
+      "fine_dining_restaurant", "food_court", "french_restaurant", "greek_restaurant", "hamburger_restaurant",
+      "ice_cream_shop", "indian_restaurant", "indonesian_restaurant", "italian_restaurant", "japanese_restaurant",
+      "juice_shop", "korean_restaurant", "lebanese_restaurant", "meal_delivery", "meal_takeaway",
+      "mediterranean_restaurant", "mexican_restaurant", "middle_eastern_restaurant", "pizza_restaurant", "pub",
+      "ramen_restaurant", "restaurant", "sandwich_shop", "seafood_restaurant", "spanish_restaurant",
+      "steak_house", "sushi_restaurant", "tea_house", "thai_restaurant", "turkish_restaurant", "vegan_restaurant",
+      "vegetarian_restaurant", "vietnamese_restaurant", "wine_bar"
     ];
-    for (const type of types) {
-      const matchingKeyword = cuisineKeywords.find((kw) => type.includes(kw));
-      if (matchingKeyword) {
-        return matchingKeyword
-          .replace(/_/g, " ")
-          .replace(/\b\w/g, (l) => l.toUpperCase());
-      }
+  
+    const match = types.find((type) => preferredTypes.includes(type));
+    if (match) {
+      return match
+        .replace(/_/g, " ")      // Replace underscores with spaces
+        .replace(/\b\w/g, (c) => c.toUpperCase()); // Title Case
     }
-    if (types.includes("restaurant")) return "Restaurant";
-    if (types.includes("food")) return "Food";
+  
     return undefined;
   };
 
@@ -231,7 +239,7 @@ const SwipeCardsScreen: React.FC = () => {
               result.geometry.location.lng
             );
 
-            const cuisine = getCuisineFromTypes(result.types || []);
+            const cuisine = formatCuisineFromTypes(result.types || []);
 
             detailedRestaurants.push({
               id: result.place_id,
@@ -298,7 +306,7 @@ const SwipeCardsScreen: React.FC = () => {
     },
     [getDistanceFromLatLonInKm, userLocation]
   );
-
+  
   useEffect(() => {
     if (!authLoading && session) {
       const init = async () => {
@@ -328,6 +336,14 @@ const SwipeCardsScreen: React.FC = () => {
     setCardStack((currentStack) => currentStack.slice(1));
   };
 
+  const handleReload = async () => {
+    if (userLocation) {
+      setDataLoading(true);
+      await fetchRestaurantsFromAPI(userLocation.latitude, userLocation.longitude);
+      setSwipedHistory([]); // Optional: reset swipe history on reload
+    }
+  };
+  
   const pan = Gesture.Pan()
     .onUpdate((event) => {
       translateX.value = event.translationX;
@@ -481,7 +497,6 @@ const SwipeCardsScreen: React.FC = () => {
     return <NoMoreCards />;
   }
 
-  // --- Render the cards ---
   // The top card is interactive, subsequent cards are static background
   const topCard = cardStack[0];
   const nextCard = cardStack[1];
@@ -489,9 +504,6 @@ const SwipeCardsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* GestureDetector must wrap a single view.
-          We will place the top card inside it, and subsequent cards behind it.
-      */}
       <GestureDetector gesture={pan}>
         <Animated.View
           style={[
@@ -541,7 +553,6 @@ const SwipeCardsScreen: React.FC = () => {
           />
         </Animated.View>
       )}
-
       <SwipeButtons
         onUndo={handleUndo}
         onDiscard={handleDiscard}
@@ -551,12 +562,17 @@ const SwipeCardsScreen: React.FC = () => {
       />
 
       {cardStack.length > 0 && (
-        <TopRightSavedButton
-          savedCount={savedRestaurants.length}
-          onPress={handleNavigateToSaved}
-        />
+        <>
+          <TouchableOpacity style={styles.reloadButton} onPress={handleReload}>
+            <Text style={styles.reloadButtonText}>Reload</Text>
+          </TouchableOpacity><TopRightSavedButton
+              savedCount={savedRestaurants.length}
+              onPress={handleNavigateToSaved} 
+              />
+        </>
+        
       )}
-      <Button onPress={() => supabase.auth.signOut()} title="Sign out" />
+      <Button title="Reload" onPress={handleReload} color="#007aff" />
     </View>
   );
 };
@@ -594,10 +610,29 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginHorizontal: 20,
   },
+  reloadButton: {
+    position: "absolute",
+    top: 1,
+    left: 20,
+    backgroundColor: "#007aff",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    zIndex: 5,
+},
+  reloadButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
   card: {
     position: "absolute",
     width: SCREEN_WIDTH * 0.9,
-    top: 70, // Adjust as needed to position the card
+    top: 70, 
     height: "70%",
     borderRadius: 20,
     overflow: "hidden",
