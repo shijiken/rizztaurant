@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
   },
   reloadButton: {
     position: "absolute",
-    top: 1,
+    top: 19,
     left: 20,
     backgroundColor: "#007aff",
     paddingVertical: 8,
