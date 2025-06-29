@@ -58,7 +58,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           console.log("AuthProvider: No session, skipping profile fetch.");
       }
 
-      setLoading(false); // This is crucial. It must be reached.
+      setLoading(false); 
       console.log("AuthProvider: setLoading(false) called. Auth loading is now false.");
     };
 
@@ -86,7 +86,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []); // Empty dependency array means this runs once on mount
 
-  // --- THIS IS THE REDIRECTION useEffect ---
+
   useEffect(() => {
     console.log("AuthProvider: Redirect Effect running.");
     console.log(`  - Current loading: ${loading}`);

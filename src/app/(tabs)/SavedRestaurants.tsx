@@ -16,7 +16,7 @@ const SavedRestaurantsScreen: React.FC = () => {
     useEffect(() => {
     }, [savedRestaurants]);
 
-    // Function to open the confirmation modal - now accepts both ID and Name
+
     const handleRemoveSaved = (item: Restaurant) => {
         // Store both ID and Name for the modal
         setRestaurantToRemove({ id: item.id, name: item.name });
@@ -74,8 +74,6 @@ const SavedRestaurantsScreen: React.FC = () => {
             ) : (
                 <FlatList
                     data={savedRestaurants}
-                    // IMPORTANT: Using name + index for keyExtractor as a temporary measure
-                    // until item.id (Google Place ID) is correctly populated.
                     keyExtractor={(item, index) => `${item.id || 'no_id'}_${index}`}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContentContainer}

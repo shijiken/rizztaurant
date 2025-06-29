@@ -185,8 +185,8 @@ const SwipeCardsScreen: React.FC = () => {
     const match = types.find((type) => preferredTypes.includes(type));
     if (match) {
       return match
-        .replace(/_/g, " ")      // Replace underscores with spaces
-        .replace(/\b\w/g, (c) => c.toUpperCase()); // Title Case
+        .replace(/_/g, " ")      
+        .replace(/\b\w/g, (c) => c.toUpperCase()); 
     }
   
     return undefined;
@@ -340,7 +340,7 @@ const SwipeCardsScreen: React.FC = () => {
     if (userLocation) {
       setDataLoading(true);
       await fetchRestaurantsFromAPI(userLocation.latitude, userLocation.longitude);
-      setSwipedHistory([]); // Optional: reset swipe history on reload
+      setSwipedHistory([]); 
     }
   };
   

@@ -6,9 +6,7 @@ import { Stack } from "expo-router"; // If you want a header for this screen
 export default function SettingsScreen() {
   return (
     <View style={styles.container}>
-      {/* <Stack.Screen options={{ title: 'Settings' }} /> // Optional header */}
       <Text style={styles.text}>Settings Screen</Text>
-      {/* Add your settings UI here */}
     </View>
   );
 }

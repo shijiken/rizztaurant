@@ -38,7 +38,7 @@ export default function SavedRestaurantsProvider({
       if (!prev.some(r => r.name === restaurant.name)) {
         const newState = [...prev, restaurant];
         console.log("SavedRestaurantsProvider: ADDING restaurant to local state:", restaurant.name, "(ID:", restaurant.id, "). New count:", newState.length);
-        setLastSavedRestaurant(restaurant); // <--- Set last saved restaurant when successfully added
+        setLastSavedRestaurant(restaurant); // Set last saved restaurant when successfully added
         return newState;
       }
       console.log("SavedRestaurantsProvider: SKIPPING adding (duplicate NAME):", restaurant.name, "(ID:", restaurant.id, "). Current count:", prev.length);
@@ -96,8 +96,8 @@ export default function SavedRestaurantsProvider({
     addSavedRestaurant,
     removeSavedRestaurant,
     setAllSavedRestaurants,
-    lastSavedRestaurant, // <--- Expose new state
-    undoLastSave,        // <--- Expose new function
+    lastSavedRestaurant, // Expose new state
+    undoLastSave,        // Expose new function
   };
 
   return (
