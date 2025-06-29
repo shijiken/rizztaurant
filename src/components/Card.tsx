@@ -1,5 +1,4 @@
 // app/components/Card/Card.tsx
-// app/components/Card/Card.tsx
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native'; // Ensure Text is imported
 import { Ionicons } from '@expo/vector-icons';
