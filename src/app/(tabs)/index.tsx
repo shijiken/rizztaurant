@@ -32,13 +32,14 @@ import { Restaurant } from "@/src/types/Restaurant";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { Redirect } from "expo-router";
 import { useRouter } from 'expo-router';
-
 import { useSavedRestaurants } from "@/src/providers/SavedRestaurantsProvider";
+import Constants from "expo-constants";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
 
-const GOOGLE_PLACES_API_KEY = "AIzaSyBGO6faoGcKdfhSkwY_1IfCJUe7Htgpq5s"; 
+const GOOGLE_PLACES_API_KEY =
+  Constants.expoConfig?.extra?.expoPublicGooglePlacesKey;
 
 const SwipeCardsScreen: React.FC = () => {
   const { session, loading: authLoading } = useAuth();
