@@ -6,19 +6,18 @@ import { Restaurant } from '@/src/types/Restaurant';
 import { useSavedRestaurants } from '@/src/providers/SavedRestaurantsProvider';
 
 const SavedRestaurantsScreen: React.FC = () => {
-    // Destructure removeSavedRestaurant to accept name for now
+
     const { savedRestaurants, removeSavedRestaurant } = useSavedRestaurants();
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    // Change state to hold both ID and Name for context
+
     const [restaurantToRemove, setRestaurantToRemove] = useState<{ id: string | undefined; name: string } | null>(null);
 
     useEffect(() => {
     }, [savedRestaurants]);
 
-    // Function to open the confirmation modal - now accepts both ID and Name
     const handleRemoveSaved = (item: Restaurant) => {
-        // Store both ID and Name for the modal
+
         setRestaurantToRemove({ id: item.id, name: item.name });
         setShowConfirmModal(true);
     };
@@ -26,8 +25,8 @@ const SavedRestaurantsScreen: React.FC = () => {
     const confirmRemove = () => {
         if (restaurantToRemove) {
             console.log("SavedRestaurantsScreen - confirmRemove: Attempting to remove by name:", restaurantToRemove.name);
-            // Call removeSavedRestaurant with the name for now
-            removeSavedRestaurant(restaurantToRemove.name); // <--- CHANGED HERE
+
+            removeSavedRestaurant(restaurantToRemove.name); 
             setRestaurantToRemove(null);
         }
         setShowConfirmModal(false);
@@ -64,7 +63,7 @@ const SavedRestaurantsScreen: React.FC = () => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.header}>Your Saved Restaurants</Text>
+
             {savedRestaurants.length === 0 ? (
                 <View style={styles.emptyContainer}>
                     <Ionicons name="bookmark-outline" size={60} color="#ccc" />

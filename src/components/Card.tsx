@@ -1,13 +1,13 @@
 // app/components/Card/Card.tsx
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native'; // Ensure Text is imported
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Restaurant } from '../types/Restaurant';
+import { Restaurant } from '@/src/types/Restaurant'; // Assuming src/types/Restaurant.ts
 import { Linking } from 'react-native';
 
 interface CardProps {
     restaurant: Restaurant;
-    getPriceLevelString: (level?: number) => string;
+    getPriceLevelString: (level?: number | string) => string; // Updated to accept string for priceLevel
 }
 
 const Card: React.FC<CardProps> = ({ restaurant, getPriceLevelString }) => {
@@ -19,39 +19,62 @@ const Card: React.FC<CardProps> = ({ restaurant, getPriceLevelString }) => {
 
     return (
         <View style={styles.cardContainer}>
-            <Image source={{ uri: restaurant.imageUrl }} style={styles.cardImage} />
+            <Image
+                source={{ uri: restaurant.imageUrl }}
+                style={styles.cardImage}
+                onError={(e) => console.log('Image loading error:', e.nativeEvent.error)}
+            />
             <View style={styles.infoContainer}>
                 <View>
-                    <Text style={styles.restaurantName}>{restaurant.name}</Text>
-                    <Text style={styles.restaurantAddress}>{restaurant.address}</Text>
+                    <Text style={styles.restaurantName} numberOfLines={2} ellipsizeMode="tail">
+                        {restaurant.name}
+                    </Text>
+                    <Text style={styles.restaurantAddress} numberOfLines={2} ellipsizeMode="tail">
+                        {restaurant.address}
+                    </Text>
 
                     {restaurant.cuisine && (
                         <Text style={styles.detailText}>
-                            <Ionicons name="pizza-outline" size={14} color="#666" /> <Text> {restaurant.cuisine}</Text> {/* <<< Ensure text is wrapped */}
+                            <Ionicons name="pizza-outline" size={14} color="#666" /> <Text> {restaurant.cuisine}</Text>
                         </Text>
                     )}
 
-                    {restaurant.rating !== undefined && restaurant.rating > 0 && (
+                    {/* Dynamic Star Rating Display */}
+                    {restaurant.rating !== undefined && restaurant.rating !== null && restaurant.rating >= 0 && (
                         <View style={styles.ratingContainer}>
-                            <Ionicons name="star" size={15} color="#FFD700" />
+                            {/* Render 5 star icons */}
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <Ionicons
+                                    key={star}
+                                    name={restaurant.rating && restaurant.rating >= star ? 'star' : 'star-outline'}
+                                    size={15}
+                                    color="#FFD700"
+                                />
+                            ))}
                             <Text style={styles.restaurantRating}>{restaurant.rating.toFixed(1)}</Text>
-                            {restaurant.user_ratings_total !== undefined && (
+                            {restaurant.user_ratings_total !== undefined && restaurant.user_ratings_total !== null && (
                                 <Text style={styles.reviewCountText}> ({restaurant.user_ratings_total} reviews)</Text>
                             )}
                         </View>
                     )}
 
-                    {restaurant.price_level !== undefined && (
+                    {restaurant.price_level !== undefined && restaurant.price_level !== null && (
                         <Text style={styles.detailText}>
-                            <Ionicons name="wallet-outline" size={14} color="#666" /> <Text> {getPriceLevelString(restaurant.price_level)}</Text> {/* <<< Ensure text is wrapped */}
+                            <Ionicons name="wallet-outline" size={14} color="#666" /> <Text> {getPriceLevelString(restaurant.price_level)}</Text>
                         </Text>
                     )}
 
-                    {restaurant.distanceKm !== undefined && (
+                    {restaurant.distanceKm !== undefined && restaurant.distanceKm !== null && (
                         <Text style={styles.distanceText}>
-                            <Ionicons name="walk-outline" size={14} color="#777" /> <Text> {restaurant.distanceKm.toFixed(2)} km away</Text> {/* <<< Ensure text is wrapped */}
+                            <Ionicons name="walk-outline" size={14} color="#777" /> <Text> {restaurant.distanceKm.toFixed(2)} km away</Text>
                         </Text>
                     )}
+
+                    {/* {restaurant.description && (
+                        <Text style={styles.descriptionText} numberOfLines={3} ellipsizeMode="tail">
+                            {restaurant.description}
+                        </Text>
+                    )} */}
                 </View>
 
                 <TouchableOpacity style={styles.mapButton} onPress={handleOpenMaps}>
@@ -63,15 +86,13 @@ const Card: React.FC<CardProps> = ({ restaurant, getPriceLevelString }) => {
     );
 };
 
-// ... (styles remain the same) ...
-
 const styles = StyleSheet.create({
     cardContainer: {
         flex: 1,
         borderRadius: 20,
         overflow: 'hidden',
         backgroundColor: '#fff',
-        elevation: 8, // Increased shadow for a more lifted look
+        elevation: 8,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
@@ -79,66 +100,72 @@ const styles = StyleSheet.create({
     },
     cardImage: {
         width: '100%',
-        height: '55%', // Keep this around 50-60% based on content
+        height: '48%', // Adjusted: Slightly smaller image height
         resizeMode: 'cover',
     },
     infoContainer: {
         flex: 1,
-        padding: 18, // Slightly more padding
+        padding: 16, // Slightly reduced padding
         justifyContent: 'space-between',
     },
     restaurantName: {
-        fontSize: 22, // Slightly smaller for better fit
+        fontSize: 20, // Adjusted: Smaller font size for title
         fontWeight: 'bold',
         color: '#333',
-        marginBottom: 4, // Reduced margin
+        marginBottom: 2, // Reduced margin
     },
     restaurantAddress: {
-        fontSize: 15, // Slightly smaller
+        fontSize: 15, // Adjusted: Smaller font size for address
         color: '#666',
-        marginBottom: 12, // More space after address
+        marginBottom: 10, // Maintained space after address
     },
     ratingContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 4, // Consistent small margin
+        marginBottom: 4,
     },
     restaurantRating: {
-        fontSize: 15, // Consistent with detail text
+        fontSize: 14, // Consistent with detail text
         color: '#FFD700',
         fontWeight: 'bold',
         marginLeft: 4,
     },
     reviewCountText: {
-        fontSize: 13, // Smaller review count
+        fontSize: 12, // Adjusted: Smaller review count
         color: '#888',
         marginLeft: 4,
     },
     detailText: {
-        fontSize: 15, // Standard size for details
+        fontSize: 14, // Adjusted: Standard size for details
         color: '#555',
-        marginBottom: 4, // Consistent small margin
+        marginBottom: 2, // Reduced margin
         flexDirection: 'row',
         alignItems: 'center',
     },
     distanceText: {
-        fontSize: 15, // Consistent with other details
+        fontSize: 14, // Consistent with other details
         color: '#777',
-        marginTop: 8, // More space above distance
+        marginTop: 6, // Reduced space above distance
         flexDirection: 'row',
         alignItems: 'center',
     },
+    descriptionText: {
+        fontSize: 13, // Adjusted: Smaller font for description
+        color: '#444',
+        marginTop: 8,
+        lineHeight: 18, // Slightly reduced line height
+    },
     mapButton: {
-        position: 'absolute', // Absolute positioning for bottom-right
+        position: 'absolute',
         bottom: 15,
         right: 15,
-        backgroundColor: '#007aff', // Solid blue for the button
-        width: 60, // Fixed width for circular shape
-        height: 60, // Fixed height for circular shape
-        borderRadius: 30, // Half of width/height for circular shape
+        backgroundColor: '#007aff',
+        width: 60,
+        height: 60,
+        borderRadius: 30,
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 6, // Shadow for the button
+        elevation: 6,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.3,
@@ -146,9 +173,9 @@ const styles = StyleSheet.create({
     },
     mapButtonText: {
         color: '#fff',
-        fontSize: 10, // Very small text for "Maps"
+        fontSize: 10,
         fontWeight: 'bold',
-        marginTop: 2, // Space between icon and text
+        marginTop: 2,
     },
 });
 

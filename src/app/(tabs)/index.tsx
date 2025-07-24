@@ -1,6 +1,6 @@
 // src/app/(tabs)/index.tsx
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -8,10 +8,10 @@ import {
   ActivityIndicator,
   Text,
   Alert,
-  PermissionsAndroid,
   Platform,
   Button,
   TouchableOpacity,
+  Linking,
 } from "react-native";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -34,6 +34,7 @@ import { Redirect } from "expo-router";
 import { useRouter } from 'expo-router';
 import { useSavedRestaurants } from "@/src/providers/SavedRestaurantsProvider";
 import Constants from "expo-constants";
+import { getCuisineFromPlaceTypes } from '@/src/utils/restaurantData';
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
@@ -42,7 +43,7 @@ const GOOGLE_PLACES_API_KEY =
   Constants.expoConfig?.extra?.expoPublicGooglePlacesKey;
 
 const SwipeCardsScreen: React.FC = () => {
-  const { session, loading: authLoading } = useAuth();
+  const { session, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
 
   const { savedRestaurants, addSavedRestaurant, removeSavedRestaurant } = useSavedRestaurants();
@@ -84,70 +85,100 @@ const SwipeCardsScreen: React.FC = () => {
   );
 
   const requestLocationPermission = async () => {
-    if (Platform.OS === "ios") {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission denied",
-          "Permission to access location was denied."
-        );
-        return false;
-      }
-      return true;
-    } else {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: "Location Permission",
-            message:
-              "This app needs access to your location to find nearby restaurants.",
-            buttonNeutral: "Ask Me Later",
-            buttonNegative: "Cancel",
-            buttonPositive: "OK",
-          }
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
+    // This single call handles permissions for both iOS and Android
+    // For Android, it requests ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION
+    // For iOS, it requests NSLocationWhenInUseUsageDescription
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission denied",
+        "Permission to access location was denied. Please enable it in your device settings."
+      );
+      return false;
     }
+    return true;
   };
 
   const getUserLocation = useCallback(async () => {
     setDataLoading(true);
     setError(null);
+
     const hasPermission = await requestLocationPermission();
     if (!hasPermission) {
-      setDataLoading(false);
-      return;
+        setDataLoading(false);
+        return;
     }
+
+    const isLocationServiceEnabled = await Location.hasServicesEnabledAsync();
+    if (!isLocationServiceEnabled) {
+        Alert.alert(
+            "Location Services Disabled",
+            "Your device's location services are turned off. Please enable them in your device settings to find nearby restaurants.",
+            [
+                { text: "Cancel", style: "cancel", onPress: () => setDataLoading(false) },
+                {
+                    text: "Open Settings",
+                    onPress: () => {
+                        Linking.openSettings();
+                        setDataLoading(false);
+                    }
+                }
+            ]
+        );
+        return;
+    }
+
+    console.log("DEBUG: Permissions granted and Location Services enabled. Attempting to get position...");
 
     try {
-      let location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-      console.log(
-        "User Location (SwipeCardsScreen):",
-        location.coords.latitude,
-        location.coords.longitude
-      );
-    } catch (err: any) {
-      setError(
-        `Error getting location: ${err.message}. Please enable location services and try again.`
-
-      );
-      console.error(err);
-      setDataLoading(false);
+        let location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+        });
+        setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+        });
+        console.log(
+            "User Location (SwipeCardsScreen):",
+            location.coords.latitude,
+            location.coords.longitude
+        );
+    } catch (err: unknown) {
+        let errorMessage = `Error getting location: ${
+          err instanceof Error ? err.message : String(err)
+        }.`;
+        if (errorMessage.includes("Not authorized") || errorMessage.includes("Location services are disabled")) {
+            errorMessage += " This usually means device location services are off or permission was revoked. Please check device settings.";
+        } else if (errorMessage.includes("Timeout")) {
+            errorMessage += " The device could not get a location fix within the allowed time. Try moving to an open area.";
+        } else {
+            errorMessage += " Please ensure location services are enabled and try again.";
+        }
+        setError(errorMessage);
+        console.error("Error in getCurrentPositionAsync:", err);
+    } finally {
+        setDataLoading(false);
     }
-  }, []);
+}, []);
 
-  const getPriceLevelString = (level?: number) => {
+
+  const getPriceLevelString = (level?: number | string) => {
+    if (typeof level === 'string') {
+      switch (level) {
+        case "PRICE_LEVEL_FREE":
+          return "Free";
+        case "PRICE_LEVEL_INEXPENSIVE":
+          return "$";
+        case "PRICE_LEVEL_MODERATE":
+          return "$$";
+        case "PRICE_LEVEL_EXPENSIVE":
+          return "$$$";
+        case "PRICE_LEVEL_VERY_EXPENSIVE":
+          return "$$$$";
+        default:
+          return "N/A";
+      }
+    }
     switch (level) {
       case 0:
         return "Free";
@@ -164,148 +195,227 @@ const SwipeCardsScreen: React.FC = () => {
     }
   };
 
-  const formatCuisineFromTypes = (types: string[]): string | undefined => {
-    if (!types || types.length === 0) return undefined;
-  
-    const preferredTypes = [
-      // Prioritize cuisine types
-      "acai_shop", "afghani_restaurant", "african_restaurant", "american_restaurant", "asian_restaurant",
-      "bagel_shop", "bakery", "bar", "bar_and_grill", "barbecue_restaurant", "brazilian_restaurant",
-      "breakfast_restaurant", "brunch_restaurant", "buffet_restaurant", "cafe", "cafeteria", "candy_store",
-      "cat_cafe", "chinese_restaurant", "chocolate_factory", "chocolate_shop", "coffee_shop", "confectionery",
-      "deli", "dessert_restaurant", "dessert_shop", "diner", "dog_cafe", "donut_shop", "fast_food_restaurant",
-      "fine_dining_restaurant", "food_court", "french_restaurant", "greek_restaurant", "hamburger_restaurant",
-      "ice_cream_shop", "indian_restaurant", "indonesian_restaurant", "italian_restaurant", "japanese_restaurant",
-      "juice_shop", "korean_restaurant", "lebanese_restaurant", "meal_delivery", "meal_takeaway",
-      "mediterranean_restaurant", "mexican_restaurant", "middle_eastern_restaurant", "pizza_restaurant", "pub",
-      "ramen_restaurant", "restaurant", "sandwich_shop", "seafood_restaurant", "spanish_restaurant",
-      "steak_house", "sushi_restaurant", "tea_house", "thai_restaurant", "turkish_restaurant", "vegan_restaurant",
-      "vegetarian_restaurant", "vietnamese_restaurant", "wine_bar"
-    ];
-  
-    const match = types.find((type) => preferredTypes.includes(type));
-    if (match) {
-      return match
-        .replace(/_/g, " ")      // Replace underscores with spaces
-        .replace(/\b\w/g, (c) => c.toUpperCase()); // Title Case
-    }
-  
-    return undefined;
-  };
-
   const fetchRestaurantsFromAPI = useCallback(
     async (latitude: number, longitude: number) => {
       setDataLoading(true);
       setError(null);
+      if (!GOOGLE_PLACES_API_KEY) {
+        setError("Google Places API Key is missing. Please check your app.config.js and .env file.");
+        setDataLoading(false);
+        return;
+      }
+
       try {
-        const nearbySearchUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=5000&type=restaurant&key=${GOOGLE_PLACES_API_KEY}`;
-        console.log("Nearby Search URL:", nearbySearchUrl);
+        // --- GOOGLE PLACES API (NEW) ENDPOINTS ---
 
-        const nearbyResponse = await fetch(nearbySearchUrl);
-        const nearbyData = await nearbyResponse.json();
+        // 1. Nearby Search (New) - POST request
+        const nearbySearchUrl = `https://places.googleapis.com/v1/places:searchNearby`;
+        const nearbySearchBody = {
+          locationRestriction: {
+            circle: {
+              center: { latitude, longitude },
+              radius: 5000 // 5km radius
+            }
+          },
+          includedTypes: ["restaurant", "cafe", "bar"], 
+          maxResultCount: 1 // Max results per call
+        };
 
-        if (nearbyData.status !== "OK" || nearbyData.results.length === 0) {
-          if (nearbyData.status === "ZERO_RESULTS") {
+        console.log("Nearby Search Request URL:", nearbySearchUrl);
+        console.log("Nearby Search Request Body:", JSON.stringify(nearbySearchBody));
+
+        const nearbyResponse = await fetch(nearbySearchUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.photos,places.primaryType,places.types,places.name' 
+          },
+          body: JSON.stringify(nearbySearchBody)
+        });
+
+        console.log("Nearby Search Response Status:", nearbyResponse.status);
+        const nearbyResponseText = await nearbyResponse.text();
+        console.log("Nearby Search Raw Response:", nearbyResponseText);
+
+        if (!nearbyResponse.ok) {
+            let errorData;
+            try {
+                errorData = JSON.parse(nearbyResponseText);
+            } catch (parseError: unknown) {
+                console.error("Failed to parse Nearby Search error response as JSON:", parseError);
+                errorData = { error: { message: `Non-JSON error response: ${nearbyResponseText}` } };
+            }
             setError(
-              "No restaurants found near your location. Try adjusting your location or search radius."
+                `API Error (Nearby Search): ${nearbyResponse.status} - ${errorData.error?.message || errorData.message || "Unknown error"}`
             );
-          } else {
-            setError(
-              `API Error (Nearby Search): ${nearbyData.status} - ${
-                nearbyData.error_message || "Unknown error"
-              }`
-            );
-            console.error("Nearby Search Response:", nearbyData);
-          }
+            setCardStack([]);
+            setDataLoading(false);
+            return;
+        }
+
+        let nearbyData;
+        try {
+            nearbyData = JSON.parse(nearbyResponseText);
+        } catch (e: unknown) {
+            setError(`JSON Parse Error (Nearby Search): ${e instanceof Error ? e.message : String(e)}. Raw response: ${nearbyResponseText}`);
+            console.error(`JSON Parse Error (Nearby Search):`, e);
+            setCardStack([]);
+            setDataLoading(false);
+            return;
+        }
+        
+        if (!nearbyData.places || nearbyData.places.length === 0) {
+          setError(
+            "No restaurants found near your location. Try adjusting your location or search radius."
+          );
           setCardStack([]);
           setDataLoading(false);
           return;
         }
 
         const detailedRestaurants: Restaurant[] = [];
-        for (const place of nearbyData.results) {
-          const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,formatted_address,geometry,rating,price_level,photos,url,website,reviews,types,user_ratings_total&key=${GOOGLE_PLACES_API_KEY}`;
-          console.log("Place Details URL:", placeDetailsUrl);
+        for (const place of nearbyData.places) {
+          if (!place.name) {
+            console.warn(`Skipping place ${place.id} due to missing resource name (place.name) in Nearby Search response.`);
+            continue; 
+          }
 
-          const detailsResponse = await fetch(placeDetailsUrl);
-          const detailsData = await detailsResponse.json();
+          const placeResourceName = place.name; 
+          const placeDetailsUrl = `https://places.googleapis.com/v1/${placeResourceName}?fields=id,displayName,formattedAddress,location,rating,priceLevel,photos,googleMapsUri,websiteUri,userRatingCount,primaryType,types,editorialSummary`;
 
-          if (detailsData.status === "OK" && detailsData.result) {
-            const result = detailsData.result;
+          console.log("Place Details Request URL:", placeDetailsUrl);
 
-            const distance = getDistanceFromLatLonInKm(
-              latitude,
-              longitude,
-              result.geometry.location.lat,
-              result.geometry.location.lng
-            );
+          const detailsResponse = await fetch(placeDetailsUrl, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+            }
+          });
 
-            const cuisine = formatCuisineFromTypes(result.types || []);
+          console.log(`Place Details Response Status for ${place.id}:`, detailsResponse.status);
+          const detailsResponseText = await detailsResponse.text();
+          console.log(`Place Details Raw Response for ${place.id}:`, detailsResponseText);
 
-            detailedRestaurants.push({
-              id: result.place_id,
-              name: result.name,
-              address: result.formatted_address,
-              mapsUrl:
-                result.url ||
-                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                  result.name
-                )}&query_place_id=${result.place_id}`,
-              imageUrl:
-                result.photos && result.photos.length > 0
-                  ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${result.photos[0].photo_reference}&key=${GOOGLE_PLACES_API_KEY}`
-                  : "https://via.placeholder.com/150?text=No+Image",
-              latitude: result.geometry.location.lat,
-              longitude: result.geometry.location.lng,
-              rating: result.rating,
-              user_ratings_total: result.user_ratings_total,
-              price_level: result.price_level,
-              cuisine: cuisine,
-              distanceKm: distance,
-            });
+          if (detailsResponse.ok && detailsResponseText) {
+            let result;
+            try {
+                result = JSON.parse(detailsResponseText);
+            } catch (e: unknown) {
+                console.warn(`JSON Parse Error for place ID ${place.id}: ${e instanceof Error ? e.message : String(e)}. Raw response: ${detailsResponseText}`);
+                result = null; 
+            }
+
+            if (result && result.location) {
+              const distance = getDistanceFromLatLonInKm(
+                latitude,
+                longitude,
+                result.location.latitude,
+                result.location.longitude
+              );
+
+              const cuisine = getCuisineFromPlaceTypes(result.primaryType, result.types || []);
+
+              detailedRestaurants.push({
+                id: result.id,
+                name: result.displayName?.text || "Unknown Restaurant",
+                address: result.formattedAddress || "Address not available",
+                mapsUrl: result.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(result.displayName?.text || "")}&query_place_id=${result.id}`,
+                imageUrl:
+                  result.photos && result.photos.length > 0
+                    ? `https://places.googleapis.com/v1/${result.photos[0].name}/media?key=${GOOGLE_PLACES_API_KEY}&maxHeightPx=400&maxWidthPx=400`
+                    : "https://via.placeholder.com/150?text=No+Image",
+                latitude: result.location.latitude,
+                longitude: result.location.longitude,
+                rating: result.rating,
+                user_ratings_total: result.userRatingCount,
+                price_level: result.priceLevel,
+                cuisine: cuisine,
+                distanceKm: distance,
+                description: result.editorialSummary?.text,
+              });
+            } else {
+                console.warn(
+                    `Failed to parse details or missing location for place ID ${place.id}. Falling back to Nearby Search data. Raw response: ${detailsResponseText}`
+                );
+                const distance = userLocation
+                  ? getDistanceFromLatLonInKm(
+                      latitude,
+                      longitude,
+                      place.location.latitude,
+                      place.location.longitude
+                    )
+                  : undefined;
+                const fallbackCuisine = getCuisineFromPlaceTypes(place.primaryType, place.types || []);
+
+                detailedRestaurants.push({
+                  id: place.id,
+                  name: place.displayName?.text || "Unknown Restaurant",
+                  address: place.formattedAddress || "Address not available",
+                  mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName?.text || "")}&query_place_id=${place.id}`,
+                  imageUrl:
+                    place.photos && place.photos.length > 0
+                      ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?key=${GOOGLE_PLACES_API_KEY}&maxHeightPx=400&maxWidthPx=400`
+                      : "https://via.placeholder.com/150?text=No+Image",
+                  latitude: place.location.latitude,
+                  longitude: place.location.longitude,
+                  rating: undefined,
+                  user_ratings_total: undefined,
+                  price_level: undefined,
+                  cuisine: fallbackCuisine,
+                  distanceKm: distance,
+                  description: undefined,
+                });
+            }
           } else {
             console.warn(
-              `Failed to fetch details for place ID ${place.place_id}: ${detailsData.status}`
+              `Failed to fetch details for place ID ${place.id}: ${detailsResponse.status} - ${detailsResponseText || "Unknown error"}. Falling back to Nearby Search data.`
             );
             const distance = userLocation
               ? getDistanceFromLatLonInKm(
                   latitude,
                   longitude,
-                  place.geometry.location.lat,
-                  place.geometry.location.lng
+                  place.location.latitude,
+                  place.location.longitude
                 )
               : undefined;
+            const fallbackCuisine = getCuisineFromPlaceTypes(place.primaryType, place.types || []);
+
             detailedRestaurants.push({
-              id: place.place_id,
-              name: place.name,
-              address: place.vicinity || "Address not available",
-              mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                place.name
-              )}&query_place_id=${place.place_id}`,
-              imageUrl: "https://via.placeholder.com/150?text=No+Image",
-              latitude: place.geometry.location.lat,
-              longitude: place.geometry.location.lng,
-              rating: place.rating || 0,
-              user_ratings_total: 0,
-              price_level: place.price_level,
+              id: place.id,
+              name: place.displayName?.text || "Unknown Restaurant",
+              address: place.formattedAddress || "Address not available",
+              mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.displayName?.text || "")}&query_place_id=${place.id}`,
+              imageUrl:
+                place.photos && place.photos.length > 0
+                  ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?key=${GOOGLE_PLACES_API_KEY}&maxHeightPx=400&maxWidthPx=400`
+                  : "https://via.placeholder.com/150?text=No+Image",
+              latitude: place.location.latitude,
+              longitude: place.location.longitude,
+              rating: undefined,
+              user_ratings_total: undefined,
+              price_level: undefined,
+              cuisine: fallbackCuisine,
               distanceKm: distance,
+              description: undefined,
             });
           }
         }
         detailedRestaurants.sort(
           (a, b) => (a.distanceKm || Infinity) - (b.distanceKm || Infinity)
         );
-        setCardStack(detailedRestaurants);
-      } catch (err: any) {
+        setCardStack(detailedRestaurants.slice(0, 25)); 
+      } catch (err: unknown) {
         setError(
-          `Network error: ${err.message}. Please check your internet connection.`
+          `API Fetch Error: ${err instanceof Error ? err.message : String(err)}. Please check your internet connection, API key, and Google Cloud project setup.`
         );
         console.error("API Fetch Error:", err);
       } finally {
         setDataLoading(false);
       }
     },
-    [getDistanceFromLatLonInKm, userLocation]
+    [getDistanceFromLatLonInKm, userLocation, GOOGLE_PLACES_API_KEY]
   );
   
   useEffect(() => {
@@ -318,10 +428,14 @@ const SwipeCardsScreen: React.FC = () => {
   }, [getUserLocation, authLoading, session]);
 
   useEffect(() => {
-    if (userLocation && !authLoading && session) {
+    if (userLocation && !authLoading && session && GOOGLE_PLACES_API_KEY) {
+      console.log("Triggering API fetch due to user location, auth status, or API key availability.");
       fetchRestaurantsFromAPI(userLocation.latitude, userLocation.longitude);
+    } else if (!GOOGLE_PLACES_API_KEY && !error) {
+      setError("Google Places API Key is missing. Please check your app.config.js and .env file.");
+      setDataLoading(false);
     }
-  }, [userLocation, fetchRestaurantsFromAPI, authLoading, session]);
+  }, [userLocation, authLoading, session, GOOGLE_PLACES_API_KEY, error, fetchRestaurantsFromAPI]);
 
   const onSwipe = (
     direction: "left" | "right",
@@ -338,10 +452,13 @@ const SwipeCardsScreen: React.FC = () => {
   };
 
   const handleReload = async () => {
+    setError(null); 
     if (userLocation) {
       setDataLoading(true);
       await fetchRestaurantsFromAPI(userLocation.latitude, userLocation.longitude);
-      setSwipedHistory([]); // Optional: reset swipe history on reload
+      setSwipedHistory([]);
+    } else {
+        await getUserLocation();
     }
   };
   
@@ -488,45 +605,51 @@ const SwipeCardsScreen: React.FC = () => {
         <Ionicons name="alert-circle-outline" size={50} color="#FF6347" />
         <Text style={styles.errorText}>{error}</Text>
         <Text style={styles.retryText}>
-          Please ensure location services are enabled.
+          Please ensure location services are enabled, and check your API key/billing setup.
         </Text>
+        <TouchableOpacity onPress={handleReload} style={styles.reloadButton}>
+          <Text style={styles.reloadButtonText}>Reload</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
+
   if (cardStack.length === 0) {
-    return <NoMoreCards />;
+    return <NoMoreCards onReload={handleReload} onSignOut={signOut} />;
   }
 
-  // The top card is interactive, subsequent cards are static background
   const topCard = cardStack[0];
   const nextCard = cardStack[1];
   const thirdCard = cardStack[2];
 
   return (
     <View style={styles.container}>
-      <GestureDetector gesture={pan}>
-        <Animated.View
-          style={[
-            styles.card,
-            { zIndex: 3 }, // Ensure the top card is always on top
-            topCardAnimatedStyle,
-          ]}
-          key={topCard.id} // Use the key of the top card for GestureDetector's child
-        >
-          <Card
-            restaurant={topCard}
-            getPriceLevelString={getPriceLevelString}
-          />
-        </Animated.View>
-      </GestureDetector>
+      {/* Conditionally render the top card if available */}
+      {topCard && (
+        <GestureDetector gesture={pan}>
+          <Animated.View
+            style={[
+              styles.card,
+              { zIndex: 3 },
+              topCardAnimatedStyle,
+            ]}
+            key={topCard.id}
+          >
+            <Card
+              restaurant={topCard}
+              getPriceLevelString={getPriceLevelString}
+            />
+          </Animated.View>
+        </GestureDetector>
+      )}
 
       {/* Render the next card behind the top card */}
       {nextCard && (
         <Animated.View
           style={[
             styles.card,
-            { zIndex: 2 }, // Behind the top card
+            { zIndex: 2 },
             nextCardAnimatedStyle,
           ]}
           key={nextCard.id}
@@ -543,7 +666,7 @@ const SwipeCardsScreen: React.FC = () => {
         <Animated.View
           style={[
             styles.card,
-            { zIndex: 1 }, // Behind the next card
+            { zIndex: 1 },
             thirdCardAnimatedStyle,
           ]}
           key={thirdCard.id}
@@ -554,26 +677,31 @@ const SwipeCardsScreen: React.FC = () => {
           />
         </Animated.View>
       )}
-      <SwipeButtons
-        onUndo={handleUndo}
-        onDiscard={handleDiscard}
-        onSelect={handleSelect}
-        canUndo={swipedHistory.length > 0}
-        canSwipe={cardStack.length > 0 && !dataLoading && !error}
-      />
 
+      {/* Swipe buttons are only rendered if there are cards */}
+      {cardStack.length > 0 && (
+        <SwipeButtons
+          onUndo={handleUndo}
+          onDiscard={handleDiscard}
+          onSelect={handleSelect}
+          canUndo={swipedHistory.length > 0}
+          canSwipe={cardStack.length > 0 && !dataLoading && !error}
+        />
+      )}
+
+      {/* Always render reload and saved button if there are cards */}
       {cardStack.length > 0 && (
         <>
           <TouchableOpacity style={styles.reloadButton} onPress={handleReload}>
             <Text style={styles.reloadButtonText}>Reload</Text>
-          </TouchableOpacity><TopRightSavedButton
+          </TouchableOpacity>
+          <TopRightSavedButton
               savedCount={savedRestaurants.length}
-              onPress={handleNavigateToSaved} 
-              />
+              onPress={handleNavigateToSaved}
+          />
         </>
-        
       )}
-      <Button title="Reload" onPress={handleReload} color="#007aff" />
+      {/* Removed the conditional rendering of NoMoreCards here */}
     </View>
   );
 };
@@ -586,6 +714,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingTop: Platform.OS === "android" ? 25 : 0,
+    // Removed position: 'relative' as NoMoreCards is no longer absolutely positioned within it
   },
   statusContainer: {
     flex: 1,
@@ -613,7 +742,7 @@ const styles = StyleSheet.create({
   },
   reloadButton: {
     position: "absolute",
-    top: 1,
+    top: 16,
     left: 20,
     backgroundColor: "#007aff",
     paddingVertical: 8,
@@ -633,8 +762,8 @@ const styles = StyleSheet.create({
   card: {
     position: "absolute",
     width: SCREEN_WIDTH * 0.9,
-    top: 70, 
-    height: "70%",
+    top: 70, // Adjust this based on your layout needs
+    height: "70%", // Adjust this based on your layout needs
     borderRadius: 20,
     overflow: "hidden",
     backgroundColor: "white",
