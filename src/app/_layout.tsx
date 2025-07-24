@@ -10,7 +10,7 @@ import { SplashScreen, Stack } from "expo-router";
 import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import AuthProvider from "../providers/AuthProvider"; 
-import SavedRestaurantsProvider from "../providers/SavedRestaurantsProvider";
+import { SavedRestaurantsProvider } from "../providers/SavedRestaurantsProvider";
 import React from "react";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 

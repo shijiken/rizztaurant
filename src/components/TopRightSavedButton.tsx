@@ -8,11 +8,11 @@ interface TopRightSavedButtonProps {
     onPress: () => void;
 }
 
-const TopRightSavedButton: React.FC<TopRightSavedButtonProps> = ({ savedCount, onPress }) => {
+const TopRightSavedButton: React.FC<TopRightSavedButtonProps> = ({ onPress }) => {
     return (
         <TouchableOpacity style={styles.topRightButton} onPress={onPress}>
             <Ionicons name="bookmark-outline" size={24} color="#555" />
-            <Text style={styles.topRightButtonText}>Saved ({savedCount})</Text>
+            <Text style={styles.topRightButtonText}>Saved </Text>
         </TouchableOpacity>
     );
 };

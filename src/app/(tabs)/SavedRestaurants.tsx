@@ -11,23 +11,26 @@ const SavedRestaurantsScreen: React.FC = () => {
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-    const [restaurantToRemove, setRestaurantToRemove] = useState<{ id: string | undefined; name: string } | null>(null);
+    // Store the full restaurant object to ensure we have the ID for removal
+    const [restaurantToRemove, setRestaurantToRemove] = useState<Restaurant | null>(null);
 
     useEffect(() => {
+        console.log("SavedRestaurantsScreen: savedRestaurants updated. Count:", savedRestaurants.length);
     }, [savedRestaurants]);
 
     const handleRemoveSaved = (item: Restaurant) => {
-
-        setRestaurantToRemove({ id: item.id, name: item.name });
+        setRestaurantToRemove(item); // Store the entire item
         setShowConfirmModal(true);
     };
 
-    const confirmRemove = () => {
-        if (restaurantToRemove) {
-            console.log("SavedRestaurantsScreen - confirmRemove: Attempting to remove by name:", restaurantToRemove.name);
-
-            removeSavedRestaurant(restaurantToRemove.name); 
+    const confirmRemove = async () => { // Made async
+        if (restaurantToRemove && restaurantToRemove.id) { // Ensure ID exists
+            console.log("SavedRestaurantsScreen - confirmRemove: Attempting to remove restaurant with ID:", restaurantToRemove.id);
+            // Pass the restaurant ID, not the name
+            await removeSavedRestaurant(restaurantToRemove.id);
             setRestaurantToRemove(null);
+        } else {
+            console.warn("Attempted to confirm removal without a valid restaurant ID.");
         }
         setShowConfirmModal(false);
     };
@@ -37,18 +40,21 @@ const SavedRestaurantsScreen: React.FC = () => {
         setShowConfirmModal(false);
     };
 
-    const renderItem = ({ item }: { item: Restaurant }) => {    
+    const renderItem = ({ item }: { item: Restaurant }) => {
+        // Ensure item.id is always used as key if available
+        const key = item.id; // item.id is guaranteed to be a string from the Restaurant type
+
         return (
             <View style={styles.listItem}>
                 <View style={styles.itemContent}>
-                    <Text style={styles.itemName}>
+                    <Text style={styles.itemName} numberOfLines={2} ellipsizeMode="tail">
                         {typeof item.name === 'string' ? item.name : 'Unnamed Restaurant'}
                     </Text>
-                    <Text style={styles.itemAddress}>
+                    <Text style={styles.itemAddress} numberOfLines={2} ellipsizeMode="tail">
                         {typeof item.address === 'string' ? item.address : 'No address available'}
                     </Text>
                     {item.mapsUrl && (
-                        <TouchableOpacity style={styles.linkButton} onPress={() => Linking.openURL(item.mapsUrl)}>
+                        <TouchableOpacity style={styles.linkButton} onPress={() => Linking.openURL(item.mapsUrl).catch(err => console.error('Failed to open URL:', err))}>
                             <Ionicons name="map" size={16} color="#007aff" />
                             <Text style={styles.itemLink}>View on Maps</Text>
                         </TouchableOpacity>
@@ -73,9 +79,7 @@ const SavedRestaurantsScreen: React.FC = () => {
             ) : (
                 <FlatList
                     data={savedRestaurants}
-                    // IMPORTANT: Using name + index for keyExtractor as a temporary measure
-                    // until item.id (Google Place ID) is correctly populated.
-                    keyExtractor={(item, index) => `${item.id || 'no_id'}_${index}`}
+                    keyExtractor={(item) => item.id}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContentContainer}
                 />

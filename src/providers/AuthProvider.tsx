@@ -10,25 +10,22 @@ import {
 } from "react";
 import { useRouter, useSegments } from 'expo-router';
 import React from "react";
-import { ActivityIndicator, View, StyleSheet, Text } from "react-native"; // Import for loading indicator
+import { ActivityIndicator, View, StyleSheet, Text, Alert } from "react-native"; // Import Alert
 
 // Define the shape of the authentication context data
 type AuthData = {
   session: Session | null;
   profile: any;
   loading: boolean;
-  // ADDED: signOut function to the AuthData type
   signOut: () => Promise<void>;
 };
 
 // Create the AuthContext with a default value that matches AuthData
-// This default value is used when the context is consumed outside a provider,
-// but it's crucial that the provider's value is the real one.
 const AuthContext = createContext<AuthData>({
   session: null,
   loading: true,
   profile: null,
-  signOut: async () => { /* no-op default */ }, // Provide a default no-op function
+  signOut: async () => { /* no-op default */ },
 });
 
 export default function AuthProvider({ children }: PropsWithChildren) {
@@ -56,6 +53,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
       if (error) {
         console.error("AuthProvider: Error fetching profile:", error.message);
+        Alert.alert("Profile Error", error.message); // Show alert for profile fetch error
       } else {
         setProfile(data || null);
         console.log("AuthProvider: Profile fetched:", data);
@@ -64,21 +62,19 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         console.log("AuthProvider: No session, skipping profile fetch.");
     }
 
-    setLoading(false); // This is crucial. It must be reached.
+    setLoading(false);
     console.log("AuthProvider: setLoading(false) called. Auth loading is now false.");
   };
 
-  // ADDED: signOut function to be provided by the context
   const handleSignOut = async () => {
-    setLoading(true); // Optionally set loading state during sign out
+    setLoading(true);
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Error signing out:", error.message);
-      // You might want to show an alert to the user here using Alert from 'react-native'
+      Alert.alert("Sign Out Error", error.message); // Show alert for sign out error
     } else {
-      setSession(null); // Clear the session on successful sign out
-      setProfile(null); // Clear profile on sign out
-      // useRouter().replace('/(auth)/sign-in'); // Optional: force redirect after sign out, though useEffect handles it
+      setSession(null);
+      setProfile(null);
     }
     setLoading(false);
   };
@@ -93,6 +89,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     }).catch(error => {
       console.error("AuthProvider: Error in getSession():", error.message);
       setLoading(false); // Ensure loading is false even on error
+      Alert.alert("Session Error", error.message); // Show alert for session error
     });
 
 
@@ -108,9 +105,8 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       console.log("AuthProvider: Cleaning up auth state change subscription.");
       subscription?.unsubscribe();
     };
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
-  // --- THIS IS THE REDIRECTION useEffect ---
   useEffect(() => {
     console.log("AuthProvider: Redirect Effect running.");
     console.log(`  - Current loading: ${loading}`);
@@ -135,9 +131,8 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     } else {
       console.log("AuthProvider: Redirect Effect: No redirect needed for current state/path.");
     }
-  }, [session, loading, segments, router]); // Dependencies
+  }, [session, loading, segments, router]);
 
-  // Render loading indicator while authentication status is being determined
   if (loading) {
     return (
       <View style={styles.container}>
@@ -149,7 +144,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
   return (
     <AuthContext.Provider
-      value={{ session, loading, profile, signOut: handleSignOut }} // ADDED: signOut to the context value
+      value={{ session, loading, profile, signOut: handleSignOut }}
     >
       {children}
     </AuthContext.Provider>
@@ -159,8 +154,6 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 // Custom hook to consume the AuthContext
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  // No need for undefined check here if createContext has a default value
-  // However, if you want to enforce usage within AuthProvider, keep it.
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
