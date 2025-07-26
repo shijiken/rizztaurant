@@ -8,9 +8,8 @@ import {
   ActivityIndicator,
   Text,
   Alert,
-  PermissionsAndroid,
+  PermissionsAndroid, 
   Platform,
-  Button,
   TouchableOpacity,
   Linking,
 } from "react-native";
@@ -43,6 +42,17 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
 
 const GOOGLE_PLACES_API_KEY =
   Constants.expoConfig?.extra?.expoPublicGooglePlacesKey;
+
+// HELPER FUNCTION FOR LOCATION WITH TIMEOUT
+const getLocationWithTimeout = async (options: Location.LocationOptions, timeoutMs: number): Promise<Location.LocationObject> => {
+  return Promise.race([
+    Location.getCurrentPositionAsync(options),
+    new Promise<Location.LocationObject>((_, reject) =>
+      setTimeout(() => reject(new Error('Location request timed out')), timeoutMs)
+    )
+  ]);
+};
+
 
 const getDistanceFromLatLonInKm = (
   lat1: number,
@@ -124,47 +134,24 @@ const SwipeCardsScreen: React.FC = () => {
     () => (translateX.value / SCREEN_WIDTH) * 20
   );
 
+
   const requestLocationPermission = useCallback(async () => {
-    if (Platform.OS === "ios") {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission denied",
-          "Permission to access location was denied."
-        );
-        return false;
-      }
-      return true;
-    } else { // Android
-      try {
-        const { GRANTED, DENIED, NEVER_ASK_AGAIN } = PermissionsAndroid.RESULTS;
 
-        const permissions = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-        ]);
-
-        console.log("Permissions result:", permissions);
-        const fineLocationGranted = permissions[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === GRANTED;
-        const coarseLocationGranted = permissions[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION] === GRANTED;
-
-        if (fineLocationGranted || coarseLocationGranted) {
-          console.log("Location permission granted");
-          return true;
-        } else {
-          console.log("Both location permissions denied");
-          Alert.alert(
-            "Permission denied",
-            "Permission to access location was denied. Some features may not work."
-          );
-          return false;
-        }
-      } catch (err: unknown) {
-        console.warn("Error requesting location permission:", err);
-        return false;
-      }
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        "Permission Denied",
+        "Permission to access location was denied. Please enable it in your device's settings to find nearby restaurants.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Open Settings", onPress: Linking.openSettings }
+        ]
+      );
+      return false;
     }
+    return true;
   }, []);
+
 
   const getUserLocation = useCallback(async () => {
     setDataLoading(true);
@@ -173,6 +160,7 @@ const SwipeCardsScreen: React.FC = () => {
     const hasPermission = await requestLocationPermission();
     if (!hasPermission) {
         setDataLoading(false);
+        setError("Location permission was not granted.");
         return;
     }
 
@@ -198,10 +186,35 @@ const SwipeCardsScreen: React.FC = () => {
     console.log("DEBUG: Permissions granted and Location Services enabled. Attempting to get position...");
 
     try {
-        let location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High,
-            // timeout: 15000,
-        });
+        let location;
+
+        if (Platform.OS === 'android') {
+            try {
+                // FIRST: Try with LOW accuracy and a short timeout for quick results
+                location = await getLocationWithTimeout(
+                  { accuracy: Location.Accuracy.Low },
+                  7000 // 7 seconds timeout for low accuracy
+                );
+                console.log("DEBUG: Got low accuracy location (Android).");
+            } catch (lowAccuracyError: any) {
+                console.warn("DEBUG: Low accuracy location failed or timed out (Android), trying high accuracy. Error:", lowAccuracyError.message);
+                // IF LOW FAILS: Fallback to High accuracy with a longer timeout
+                location = await getLocationWithTimeout(
+                  { accuracy: Location.Accuracy.High },
+                  15000 // 15 seconds timeout for high accuracy
+                );
+                console.log("DEBUG: Got high accuracy location (Android).");
+            }
+        } else { // iOS or other platforms, use High accuracy directly with helper
+            location = await getLocationWithTimeout(
+                { accuracy: Location.Accuracy.High },
+                15000 // 15 seconds timeout for iOS/High accuracy
+            );
+            console.log("DEBUG: Got high accuracy location (iOS/Other).");
+        }
+
+        
+
         setUserLocation({
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
@@ -218,12 +231,12 @@ const SwipeCardsScreen: React.FC = () => {
         if (errorMessage.includes("Not authorized") || errorMessage.includes("Location services are disabled")) {
             errorMessage += " This usually means device location services are off or permission was revoked. Please check device settings.";
         } else if (errorMessage.includes("Timeout")) {
-            errorMessage += " The device could not get a location fix within the allowed time. Try moving to an open area.";
+            errorMessage += " The device could not get a location fix within the allowed time. Try moving to an open area or check your device's location settings.";
         } else {
             errorMessage += " Please ensure location services are enabled and try again.";
         }
         setError(errorMessage);
-        console.error("Error in getCurrentPositionAsync:", err);
+        console.error("Error in getCurrentPositionAsync (final catch):", err);
     } finally {
         setDataLoading(false);
     }
@@ -249,9 +262,6 @@ const SwipeCardsScreen: React.FC = () => {
       }
       const userId = session.user.id;
 
-      // When fetchRestaurantsFromAPI is called, it will always get the *current*
-      // (potentially empty) swiped history.
-      // The `refetchRestaurants` function is responsible for clearing this history first.
       const { data: swipedData, error: swipedError } = await supabase
         .from('user_swiped_restaurants')
         .select('restaurant_id')
@@ -263,19 +273,17 @@ const SwipeCardsScreen: React.FC = () => {
       const swipedRestaurantIds = new Set(swipedData?.map(item => item.restaurant_id) || []);
       console.log("SCS: Swiped Restaurant IDs before API call (for filtering):", Array.from(swipedRestaurantIds));
 
-      // --- START OF ADDED OUTER TRY BLOCK ---
       try {
-          // 2. Perform Nearby Search (New)
           const nearbySearchUrl = `https://places.googleapis.com/v1/places:searchNearby`;
           const nearbySearchBody = {
             locationRestriction: {
               circle: {
                 center: { latitude, longitude },
-                radius: 5000 // 5km radius
+                radius: 2000 // 5km radius
               }
             },
             includedTypes: ["restaurant", "cafe", "bar"],
-            maxResultCount: 3 // Max results per call (API limit)
+            maxResultCount: 10 // Max results per call (API limit)
           };
 
           const nearbyResponse = await fetch(nearbySearchUrl, {
@@ -427,13 +435,13 @@ const SwipeCardsScreen: React.FC = () => {
                 },
                 { onConflict: 'id', ignoreDuplicates: false }
               );
-          } // End of for loop
+          } 
           newRestaurantsToProcess.sort(
             (a, b) => (a.distanceKm || Infinity) - (b.distanceKm || Infinity)
           );
           console.log("SCS: Setting card stack with", newRestaurantsToProcess.length, "new restaurants.");
           setCardStack(newRestaurantsToProcess.slice(0, 25));
-    } catch (err: unknown) { // This catch block now correctly matches the 'try' above
+    } catch (err: unknown) {
       setError(
         `API Fetch Error: ${err instanceof Error ? err.message : String(err)}. Please check your internet connection, API key, and Google Cloud project setup.`
       );
@@ -451,9 +459,8 @@ const SwipeCardsScreen: React.FC = () => {
     if (userLocation && session?.user?.id) {
       setDataLoading(true);
       setHasFetchedInitialData(false);
-      setCardStack([]); // Clear existing cards immediately to show loading or empty state
+      setCardStack([]); 
 
-      // THIS IS THE KEY FOR COMPLETE REFRESH: Clear all user's swiped history
       console.log("SCS: Clearing ALL user's swiped history for complete refresh...");
       const { error: deleteError } = await supabase
         .from('user_swiped_restaurants')
@@ -467,7 +474,7 @@ const SwipeCardsScreen: React.FC = () => {
       }
 
       console.log("SCS: Calling fetchRestaurantsFromAPI to get all nearby restaurants.");
-      await fetchRestaurantsFromAPI(userLocation.latitude, userLocation.longitude); // No special parameter needed now
+      await fetchRestaurantsFromAPI(userLocation.latitude, userLocation.longitude);
     } else {
         console.log("SCS: User location or session missing, getting user location first.");
         await getUserLocation();
