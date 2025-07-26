@@ -13,6 +13,9 @@ import { supabase } from "@/src/lib/supabase";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { Restaurant } from "@/src/types/Restaurant";
 import { Alert } from "react-native";
+// NEW: Import storage utilities instead of AsyncStorage directly
+import { loadSavedRestaurantsFromLocal, saveSavedRestaurantsToLocal, clearSavedRestaurantsFromLocal } from "@/src/lib/storage";
+
 
 interface SavedRestaurantsContextType {
   savedRestaurants: Restaurant[];
@@ -36,6 +39,7 @@ export const SavedRestaurantsProvider = ({
   const [loadingSavedRestaurants, setLoadingSavedRestaurants] = useState(true);
 
   const hasFetchedForSessionRef = useRef(false);
+  const isFetchingRef = useRef(false); // To prevent multiple concurrent fetches
 
   const mapDbRestaurantToAppRestaurant = useCallback((dbRestaurant: any): Restaurant => {
     return {
@@ -45,7 +49,7 @@ export const SavedRestaurantsProvider = ({
       mapsUrl: dbRestaurant.maps_url,
       imageUrl: dbRestaurant.image_url,
       latitude: dbRestaurant.latitude,
-      longitude: dbRestaurant.longitude, 
+      longitude: dbRestaurant.longitude,
       rating: dbRestaurant.rating,
       user_ratings_total: dbRestaurant.user_ratings_total,
       price_level: dbRestaurant.price_level,
@@ -54,10 +58,31 @@ export const SavedRestaurantsProvider = ({
     };
   }, []);
 
-  // Function to fetch saved restaurants, now with optional forceRefresh
+  // Simplified: Now just calls the utility function
+  const handleSaveToCache = useCallback(async (restaurants: Restaurant[]) => {
+    await saveSavedRestaurantsToLocal(restaurants);
+  }, []);
+
+  // Simplified: Now just calls the utility function
+  const handleLoadFromCache = useCallback(async () => {
+    const stored = await loadSavedRestaurantsFromLocal();
+    if (stored.length > 0) {
+      setSavedRestaurants(stored);
+    }
+  }, []);
+
+
   const fetchSavedRestaurants = useCallback(async (currentUserId: string, forceRefresh: boolean = false) => {
+    if (isFetchingRef.current && !forceRefresh) {
+        console.log("SRP: fetchSavedRestaurants skipped - already fetching or recently fetched.");
+        return;
+    }
+    isFetchingRef.current = true; // Set fetching state
+
     if (hasFetchedForSessionRef.current && !forceRefresh) {
       console.log("SRP: fetchSavedRestaurants skipped - already fetched for this session and not forced.");
+      setLoadingSavedRestaurants(false); // Ensure loading is false if skipped
+      isFetchingRef.current = false;
       return;
     }
     console.log(`SRP: Initial fetchSavedRestaurants called for user: ${currentUserId} (Force Refresh: ${forceRefresh})`);
@@ -86,8 +111,7 @@ export const SavedRestaurantsProvider = ({
 
       if (error) {
         console.error("SRP: Error fetching saved restaurants:", error.message);
-        Alert.alert("Error", "Failed to load saved restaurants: " + error.message);
-        setSavedRestaurants([]);
+        Alert.alert("Error", "Failed to load saved restaurants from server: " + error.message + ". Showing cached data if available.");
       } else {
         const fetchedRestaurants = data
           .map((item: any) => item.restaurants)
@@ -95,19 +119,21 @@ export const SavedRestaurantsProvider = ({
           .map(mapDbRestaurantToAppRestaurant);
         console.log("SRP: Fetch completed. Setting savedRestaurants. Count:", fetchedRestaurants.length);
         setSavedRestaurants(fetchedRestaurants);
-        if (!forceRefresh) { // Only mark as fetched for session if it's the initial, non-forced fetch
-          hasFetchedForSessionRef.current = true;
-        }
+        await handleSaveToCache(fetchedRestaurants); // Use the new handleSaveToCache
+      }
+      if (!forceRefresh) {
+        hasFetchedForSessionRef.current = true;
       }
     } catch (err: unknown) {
       console.error("SRP: Unexpected error fetching saved restaurants:", err);
-      Alert.alert("Error", "An unexpected error occurred while loading saved restaurants.");
-      setSavedRestaurants([]);
+      Alert.alert("Error", "An unexpected error occurred while loading saved restaurants. Showing cached data if available.");
     } finally {
       setLoadingSavedRestaurants(false);
+      isFetchingRef.current = false;
       console.log("SRP: Fetch loading set to false.");
     }
-  }, [mapDbRestaurantToAppRestaurant]);
+  }, [mapDbRestaurantToAppRestaurant, handleSaveToCache]);
+
 
   useEffect(() => {
     console.log("SRP: useEffect triggered. Current Session ID:", session?.user?.id);
@@ -117,12 +143,16 @@ export const SavedRestaurantsProvider = ({
       setSavedRestaurants([]);
       setLoadingSavedRestaurants(false);
       hasFetchedForSessionRef.current = false;
+      clearSavedRestaurantsFromLocal(); // Use the utility function to clear cache
       return;
     }
 
     const userId = session.user.id;
-    console.log(`SRP: User ID present: ${userId}. Setting up real-time listener.`);
+    console.log(`SRP: User ID present: ${userId}.`);
 
+    handleLoadFromCache(); // Load from cache immediately
+
+    console.log(`SRP: Setting up real-time listener for user: ${userId}.`);
     const channelName = `user_saved_restaurants_channel_${userId}`;
     const savedRestaurantsChannel = supabase
       .channel(channelName)
@@ -164,8 +194,10 @@ export const SavedRestaurantsProvider = ({
               const mappedRestaurant = mapDbRestaurantToAppRestaurant(data);
               setSavedRestaurants((prev) => {
                 if (!prev.some(r => r.id === mappedRestaurant.id)) {
+                  const newState = [...prev, mappedRestaurant];
+                  handleSaveToCache(newState); // Update cache on RTU
                   console.log("SRP: Adding new restaurant to state via INSERT RTU:", mappedRestaurant.name);
-                  return [...prev, mappedRestaurant];
+                  return newState;
                 }
                 console.log("SRP: Restaurant already in state (INSERT RTU), skipping add:", mappedRestaurant.name);
                 return prev;
@@ -187,6 +219,7 @@ export const SavedRestaurantsProvider = ({
           const deletedRestaurantId = (payload.old as { restaurant_id: string }).restaurant_id;
           setSavedRestaurants((prev) => {
             const newState = prev.filter((r) => r.id !== deletedRestaurantId);
+            handleSaveToCache(newState); // Update cache on RTU
             console.log("SRP: Removing restaurant from state via DELETE RTU. New count:", newState.length);
             return newState;
           });
@@ -196,8 +229,7 @@ export const SavedRestaurantsProvider = ({
         console.log(`SRP: Channel '${channelName}' subscription status: ${status}`);
         if (status === 'SUBSCRIBED') {
           console.log(`SRP: Channel '${channelName}' successfully SUBSCRIBED. Triggering initial fetch.`);
-          // Initial fetch happens here after subscription is confirmed
-          fetchSavedRestaurants(userId);
+          fetchSavedRestaurants(userId); // Fetch from Supabase after subscription confirmed
         } else if (status === 'CHANNEL_ERROR') {
           console.error(`SRP: Channel '${channelName}' encountered an error.`);
           setLoadingSavedRestaurants(false);
@@ -211,7 +243,7 @@ export const SavedRestaurantsProvider = ({
       console.log("SRP: Cleaning up channel subscription:", channelName);
       supabase.removeChannel(savedRestaurantsChannel);
     };
-  }, [session?.user?.id, fetchSavedRestaurants]);
+  }, [session?.user?.id, fetchSavedRestaurants, mapDbRestaurantToAppRestaurant, handleSaveToCache, handleLoadFromCache]);
 
   const addSavedRestaurant = async (restaurant: Restaurant) => {
     console.log("SRP: addSavedRestaurant called for:", restaurant.name, "ID:", restaurant.id);
@@ -220,48 +252,70 @@ export const SavedRestaurantsProvider = ({
       return;
     }
 
-    const { error: upsertRestaurantError } = await supabase
-      .from("restaurants")
-      .upsert(
-        {
-          id: restaurant.id,
-          name: restaurant.name,
-          address: restaurant.address,
-          maps_url: restaurant.mapsUrl,
-          image_url: restaurant.imageUrl,
-          latitude: restaurant.latitude,
-          longitude: restaurant.longitude,
-          rating: restaurant.rating,
-          user_ratings_total: restaurant.user_ratings_total,
-          price_level: restaurant.price_level,
-          cuisine: restaurant.cuisine,
-          distance_km: restaurant.distanceKm,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id', ignoreDuplicates: false }
-      );
-
-    if (upsertRestaurantError) {
-      console.error("SRP: Error upserting restaurant details:", upsertRestaurantError.message);
-      Alert.alert("Error", "Failed to save restaurant details: " + upsertRestaurantError.message);
+    if (savedRestaurants.some(r => r.id === restaurant.id)) {
+      console.warn("SRP: Restaurant already saved locally, skipping DB operation for add.");
       return;
     }
 
-    const { error } = await supabase
-      .from("user_saved_restaurants")
-      .insert({ user_id: session.user.id, restaurant_id: restaurant.id });
+    // Optimistic UI update for immediate feedback
+    setSavedRestaurants(prev => {
+        const newState = [...prev, restaurant];
+        handleSaveToCache(newState); // Update cache optimistically
+        return newState;
+    });
 
-    if (error) {
-      if (error.code === '23505') {
-        console.warn("SRP: Restaurant already saved by this user (duplicate entry).");
-      } else {
-        console.error("SRP: Error adding saved restaurant to user_saved_restaurants:", error.message);
-        Alert.alert("Error", "Failed to save restaurant: " + error.message);
+    try {
+      const { error: upsertRestaurantError } = await supabase
+        .from("restaurants")
+        .upsert(
+          {
+            id: restaurant.id,
+            name: restaurant.name,
+            address: restaurant.address,
+            maps_url: restaurant.mapsUrl,
+            image_url: restaurant.imageUrl,
+            latitude: restaurant.latitude,
+            longitude: restaurant.longitude,
+            rating: restaurant.rating,
+            user_ratings_total: restaurant.user_ratings_total,
+            price_level: restaurant.price_level,
+            cuisine: restaurant.cuisine,
+            distance_km: restaurant.distanceKm,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id', ignoreDuplicates: false }
+        );
+
+      if (upsertRestaurantError) {
+        console.error("SRP: Error upserting restaurant details:", upsertRestaurantError.message);
+        Alert.alert("Error", "Failed to save restaurant details: " + upsertRestaurantError.message);
+        // Revert optimistic update if there's an error
+        setSavedRestaurants(prev => prev.filter(r => r.id !== restaurant.id));
+        handleSaveToCache(savedRestaurants.filter(r => r.id !== restaurant.id)); // Revert cache
+        return;
       }
-    } else {
-      console.log("SRP: Restaurant saved successfully in DB (user_saved_restaurants)! Manually re-fetching data.");
-      // FIXED: Manually re-fetch data after successful insert
-      fetchSavedRestaurants(session.user.id, true);
+
+      const { error } = await supabase
+        .from("user_saved_restaurants")
+        .insert({ user_id: session.user.id, restaurant_id: restaurant.id });
+
+      if (error) {
+        if (error.code === '23505') {
+          console.warn("SRP: Restaurant already saved by this user (duplicate entry).");
+        } else {
+          console.error("SRP: Error adding saved restaurant to user_saved_restaurants:", error.message);
+          Alert.alert("Error", "Failed to save restaurant: " + error.message);
+          setSavedRestaurants(prev => prev.filter(r => r.id !== restaurant.id));
+          handleSaveToCache(savedRestaurants.filter(r => r.id !== restaurant.id)); // Revert cache
+        }
+      } else {
+        console.log("SRP: Restaurant saved successfully in DB (user_saved_restaurants)! Real-time will update state.");
+      }
+    } catch (err) {
+        console.error("SRP: Unexpected error in addSavedRestaurant:", err);
+        Alert.alert("Error", "An unexpected error occurred while saving the restaurant.");
+        setSavedRestaurants(prev => prev.filter(r => r.id !== restaurant.id));
+        handleSaveToCache(savedRestaurants.filter(r => r.id !== restaurant.id)); // Revert cache
     }
   };
 
@@ -272,19 +326,33 @@ export const SavedRestaurantsProvider = ({
       return;
     }
 
-    const { error } = await supabase
-      .from("user_saved_restaurants")
-      .delete()
-      .eq("user_id", session.user.id)
-      .eq("restaurant_id", restaurantId);
+    const previousSavedRestaurants = savedRestaurants; // Store for potential revert
+    setSavedRestaurants(prev => {
+        const newState = prev.filter((r) => r.id !== restaurantId);
+        handleSaveToCache(newState); // Update cache optimistically
+        return newState;
+    });
 
-    if (error) {
-      console.error("SRP: Error removing saved restaurant from user_saved_restaurants:", error.message);
-      Alert.alert("Error", "Failed to remove restaurant: " + error.message);
-    } else {
-      console.log("SRP: Restaurant removed successfully from DB (user_saved_restaurants)! Manually re-fetching data.");
-      // FIXED: Manually re-fetch data after successful delete
-      fetchSavedRestaurants(session.user.id, true);
+    try {
+      const { error } = await supabase
+        .from("user_saved_restaurants")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("restaurant_id", restaurantId);
+
+      if (error) {
+        console.error("SRP: Error removing saved restaurant from user_saved_restaurants:", error.message);
+        Alert.alert("Error", "Failed to remove restaurant: " + error.message);
+        setSavedRestaurants(previousSavedRestaurants); // Revert optimistic update on error
+        handleSaveToCache(previousSavedRestaurants); // Revert cache
+      } else {
+        console.log("SRP: Restaurant removed successfully from DB (user_saved_restaurants)! Real-time will update state.");
+      }
+    } catch (err) {
+        console.error("SRP: Unexpected error in removeSavedRestaurant:", err);
+        Alert.alert("Error", "An unexpected error occurred while removing the restaurant.");
+        setSavedRestaurants(previousSavedRestaurants); // Revert optimistic update
+        handleSaveToCache(previousSavedRestaurants); // Revert cache
     }
   };
 
