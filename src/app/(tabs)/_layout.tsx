@@ -3,15 +3,14 @@ import React from "react";
 import { Link, Tabs } from "expo-router";
 import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons"; // Import Ionicons for tab bar icons
-import Colors from "@/src/constants/Colors";
-import { useColorScheme } from "@/src/components/useColorScheme";
+// import Colors from "@/src/constants/Colors"; // <-- REMOVE THIS IMPORT
+// import { useColorScheme } from "@/src/components/useColorScheme"; // <-- REMOVE THIS IMPORT
 import { useClientOnlyValue } from "@/src/components/useClientOnlyValue";
 
-// Assuming supabase is accessible from a global location or passed down via context
-// This import is needed for the logout button
-import { supabase } from "@/src/lib/supabase"; // Adjust path if necessary
+// Import your custom useTheme hook
+import { useTheme } from "@/src/providers/ThemeProvider";
+import { supabase } from "@/src/lib/supabase"; 
 
-// Helper function for Tab Bar Icons using Ionicons
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof Ionicons>["name"];
   color: string;
@@ -20,19 +19,24 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+
+  const { theme, isDark } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        tabBarInactiveTintColor: "gray", // Match your AppNavigator's inactive tint
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
+
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: isDark ? theme.textTertiary : Colors.light.gray, // Adjust inactive tint based on theme
+
         headerShown: useClientOnlyValue(false, true), // header shown if not on web client
+        tabBarStyle: {
+          backgroundColor: theme.surface, // Apply theme's surface color to tab bar background
+          borderTopColor: theme.border, // Apply theme's border color
+        },
       }}
     >
-      {/* Tab for SwipeCardsScreen (now index.tsx) */}
+
       <Tabs.Screen
         name="index" // Matches the filename src/app/(tabs)/SwipeCards.tsx
         options={{
@@ -43,9 +47,13 @@ export default function TabLayout() {
               color={color}
             />
           ),
-          // You can add header options specific to this tab if needed
           headerShown: true, // Example: Show header on this tab
           headerTitle: "Discover",
+          // Apply header styling based on theme
+          headerStyle: {
+            backgroundColor: theme.background,
+          },
+          headerTintColor: theme.text, // Text color for header title
         }}
       />
 
@@ -77,6 +85,27 @@ export default function TabLayout() {
           ),
           headerShown: true, // Example: Show header on this tab
           headerTitle: "Your Saved Restaurants",
+          // Apply header styling based on theme
+          headerStyle: {
+            backgroundColor: theme.background,
+          },
+          headerTintColor: theme.text, // Text color for header title
+          headerRight: () => (
+            <Pressable
+              onPress={async () => {
+                await supabase.auth.signOut(); // Logout action
+              }}
+            >
+              {({ pressed }) => (
+                <Ionicons
+                  name="log-out-outline" // Logout icon
+                  size={25}
+                  color={theme.text} // Use theme.text for icon color
+                  style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                />
+              )}
+            </Pressable>
+          ),
         }}
       />
 
@@ -93,8 +122,22 @@ export default function TabLayout() {
           ),
           headerShown: true, // Example: Show header on this tab
           headerTitle: "App Settings",
+          // Apply header styling based on theme
+          headerStyle: {
+            backgroundColor: theme.background,
+          },
+          headerTintColor: theme.text, // Text color for header title
         }}
       />
     </Tabs>
   );
 }
+
+const Colors = {
+  light: {
+    gray: 'gray', // Define a default gray for light mode inactive tint
+  },
+  dark: {
+    gray: 'gray', // Define a default gray for dark mode inactive tint
+  }
+};

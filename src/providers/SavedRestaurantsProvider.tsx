@@ -58,12 +58,12 @@ export const SavedRestaurantsProvider = ({
     };
   }, []);
 
-  // Simplified: Now just calls the utility function
+
   const handleSaveToCache = useCallback(async (restaurants: Restaurant[]) => {
     await saveSavedRestaurantsToLocal(restaurants);
   }, []);
 
-  // Simplified: Now just calls the utility function
+
   const handleLoadFromCache = useCallback(async () => {
     const stored = await loadSavedRestaurantsFromLocal();
     if (stored.length > 0) {
