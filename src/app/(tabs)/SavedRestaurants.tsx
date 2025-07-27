@@ -10,12 +10,12 @@ import {
   Modal,
   TextInput,
   ScrollView,
-  useColorScheme,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Restaurant } from "@/src/types/Restaurant";
 import { useSavedRestaurants } from "@/src/providers/SavedRestaurantsProvider";
-import FilterModal from "@/src/components/FilterModal"; // New import
+import FilterModal from "@/src/components/FilterModal";
+import { useTheme } from "@/src/providers/ThemeProvider"; 
 
 // Define types for filter options
 export type PriceLevel = "$" | "$$" | "$$$" | "$$$$" | "N/A" | "Free" | null;
@@ -63,17 +63,14 @@ const getPriceLevelString = (level?: number | string): string => {
 
 const SavedRestaurantsScreen: React.FC = () => {
   const { savedRestaurants, removeSavedRestaurant } = useSavedRestaurants();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { theme, isDark } = useTheme(); // Use your custom theme hook
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [restaurantToRemove, setRestaurantToRemove] =
     useState<Restaurant | null>(null);
 
-  // State for filter modal visibility
   const [showFilterModal, setShowFilterModal] = useState(false);
 
-  // State for filter options
   const [filters, setFilters] = useState<FilterOptions>({
     cuisine: null,
     minRating: null,
@@ -114,11 +111,9 @@ const SavedRestaurantsScreen: React.FC = () => {
     setShowConfirmModal(false);
   };
 
-  // Memoized filtered restaurants
   const filteredRestaurants = useMemo(() => {
     let filtered = savedRestaurants;
 
-    // 1. Search Query Filter
     if (filters.searchQuery) {
       const query = filters.searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -130,7 +125,6 @@ const SavedRestaurantsScreen: React.FC = () => {
       );
     }
 
-    // 2. Cuisine Filter
     if (filters.cuisine && filters.cuisine !== "All") {
       filtered = filtered.filter(
         (restaurant) =>
@@ -139,7 +133,6 @@ const SavedRestaurantsScreen: React.FC = () => {
       );
     }
 
-    // 3. Minimum Rating Filter
     if (filters.minRating !== null) {
       filtered = filtered.filter(
         (restaurant) =>
@@ -147,7 +140,6 @@ const SavedRestaurantsScreen: React.FC = () => {
       );
     }
 
-    // 4. Maximum Price Level Filter
     if (filters.maxPriceLevel !== null) {
       const priceLevelMap: { [key: string]: number } = {
         Free: 0,
@@ -155,12 +147,10 @@ const SavedRestaurantsScreen: React.FC = () => {
         $$: 2,
         $$$: 3,
         $$$$: 4,
-        "N/A": 99, // N/A is effectively highest cost
+        "N/A": 99,
       };
       const maxLevel = priceLevelMap[filters.maxPriceLevel];
       filtered = filtered.filter((restaurant) => {
-        // Convert the restaurant's price_level to its dollar sign string FIRST,
-        // then use that string to get the numeric value for comparison.
         const actualPriceLevelString = getPriceLevelString(
           restaurant.price_level
         );
@@ -178,25 +168,23 @@ const SavedRestaurantsScreen: React.FC = () => {
   }, [savedRestaurants, filters]);
 
   const renderItem = ({ item }: { item: Restaurant }) => {
-    const key = item.id;
-
     return (
       <View
         style={[
           styles.listItem,
-          { backgroundColor: isDark ? "#2c2c2e" : "#fff" },
+          { backgroundColor: isDark ? theme.card : theme.surface },
         ]}
       >
         <View style={styles.itemContent}>
           <Text
-            style={[styles.itemName, { color: isDark ? "#fff" : "#333" }]}
+            style={[styles.itemName, { color: theme.text }]}
             numberOfLines={2}
             ellipsizeMode="tail"
           >
             {typeof item.name === "string" ? item.name : "Unnamed Restaurant"}
           </Text>
           <Text
-            style={[styles.itemAddress, { color: isDark ? "#aaa" : "#666" }]}
+            style={[styles.itemAddress, { color: theme.textSecondary }]}
             numberOfLines={2}
             ellipsizeMode="tail"
           >
@@ -209,7 +197,7 @@ const SavedRestaurantsScreen: React.FC = () => {
               <Text
                 style={[
                   styles.itemDetailText,
-                  { color: isDark ? "#bbb" : "#555" },
+                  { color: theme.textSecondary },
                 ]}
               >
                 {item.cuisine}
@@ -221,7 +209,7 @@ const SavedRestaurantsScreen: React.FC = () => {
                 <Text
                   style={[
                     styles.itemDetailText,
-                    { color: isDark ? "#bbb" : "#555" },
+                    { color: theme.textSecondary },
                   ]}
                 >
                   {item.rating.toFixed(1)}
@@ -232,11 +220,10 @@ const SavedRestaurantsScreen: React.FC = () => {
               <Text
                 style={[
                   styles.itemDetailText,
-                  { color: isDark ? "#bbb" : "#555" },
+                  { color: theme.textSecondary },
                 ]}
               >
                 Cost: {getPriceLevelString(item.price_level)}{" "}
-                {/* ALWAYS use the helper function here */}
               </Text>
             )}
           </View>
@@ -249,8 +236,8 @@ const SavedRestaurantsScreen: React.FC = () => {
                 )
               }
             >
-              <Ionicons name="map" size={16} color="#007aff" />
-              <Text style={styles.itemLink}>View on Maps</Text>
+              <Ionicons name="map" size={16} color={theme.primary} />
+              <Text style={[styles.itemLink, { color: theme.primary }]}>View on Maps</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -258,10 +245,11 @@ const SavedRestaurantsScreen: React.FC = () => {
           onPress={() => handleRemoveSaved(item)}
           style={[
             styles.removeButton,
-            { backgroundColor: isDark ? "#3a1f1f" : "#ffe5e5" },
+
+            { backgroundColor: isDark ? theme.error + '33' : theme.error + '20' },
           ]}
         >
-          <Ionicons name="trash-outline" size={24} color="#FF6347" />
+          <Ionicons name="trash-outline" size={24} color={theme.error} />
         </TouchableOpacity>
       </View>
     );
@@ -271,7 +259,7 @@ const SavedRestaurantsScreen: React.FC = () => {
     <View
       style={[
         styles.container,
-        { backgroundColor: isDark ? "#000" : "#f8f8f8" },
+        { backgroundColor: theme.background },
       ]}
     >
       <View style={styles.headerContainer}>
@@ -279,11 +267,11 @@ const SavedRestaurantsScreen: React.FC = () => {
           onPress={() => setShowFilterModal(true)}
           style={[
             styles.filterButton,
-            { backgroundColor: isDark ? "#1a1a1c" : "#e6f2ff" },
+            { backgroundColor: theme.surface },
           ]}
         >
-          <Ionicons name="filter" size={24} color="#007aff" />
-          <Text style={styles.filterButtonText}>Filter</Text>
+          <Ionicons name="filter" size={24} color={theme.primary} />
+          <Text style={[styles.filterButtonText, { color: theme.primary }]}>Filter</Text>
         </TouchableOpacity>
       </View>
 
@@ -291,13 +279,13 @@ const SavedRestaurantsScreen: React.FC = () => {
         style={[
           styles.searchInput,
           {
-            backgroundColor: isDark ? "#2c2c2e" : "#fff",
-            borderColor: isDark ? "#3a3a3c" : "#ddd",
-            color: isDark ? "#fff" : "#333",
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+            color: theme.text,
           },
         ]}
         placeholder="Search by name, address, or cuisine..."
-        placeholderTextColor={isDark ? "#8e8e93" : "#888"}
+        placeholderTextColor={theme.textTertiary}
         value={filters.searchQuery}
         onChangeText={(text) =>
           setFilters((prev) => ({ ...prev, searchQuery: text }))
@@ -309,13 +297,13 @@ const SavedRestaurantsScreen: React.FC = () => {
           <Ionicons
             name="search-outline"
             size={60}
-            color={isDark ? "#555" : "#ccc"}
+            color={theme.textTertiary}
           />
-          <Text style={[styles.emptyText, { color: isDark ? "#aaa" : "#888" }]}>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
             No restaurants match your filters.
           </Text>
           <Text
-            style={[styles.emptySubText, { color: isDark ? "#777" : "#aaa" }]}
+            style={[styles.emptySubText, { color: theme.textTertiary }]}
           >
             Try adjusting your search or filter options.
           </Text>
@@ -325,13 +313,13 @@ const SavedRestaurantsScreen: React.FC = () => {
           <Ionicons
             name="bookmark-outline"
             size={60}
-            color={isDark ? "#555" : "#ccc"}
+            color={theme.textTertiary}
           />
-          <Text style={[styles.emptyText, { color: isDark ? "#aaa" : "#888" }]}>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
             No saved restaurants yet.
           </Text>
           <Text
-            style={[styles.emptySubText, { color: isDark ? "#777" : "#aaa" }]}
+            style={[styles.emptySubText, { color: theme.textTertiary }]}
           >
             Swipe right on the "Swipe" tab to save some!
           </Text>
@@ -355,16 +343,16 @@ const SavedRestaurantsScreen: React.FC = () => {
           <View
             style={[
               styles.modalContent,
-              { backgroundColor: isDark ? "#2c2c2e" : "#fff" },
+              { backgroundColor: theme.card },
             ]}
           >
             <Text
-              style={[styles.modalTitle, { color: isDark ? "#fff" : "#333" }]}
+              style={[styles.modalTitle, { color: theme.text }]}
             >
               Confirm Removal
             </Text>
             <Text
-              style={[styles.modalMessage, { color: isDark ? "#aaa" : "#555" }]}
+              style={[styles.modalMessage, { color: theme.textSecondary }]}
             >
               Are you sure you want to remove "{restaurantToRemove?.name ?? ""}
               "?
@@ -375,13 +363,13 @@ const SavedRestaurantsScreen: React.FC = () => {
                 style={[
                   styles.modalButton,
                   styles.modalButtonCancel,
-                  { backgroundColor: isDark ? "#48484a" : "#e0e0e0" },
+                  { backgroundColor: theme.surface },
                 ]}
               >
                 <Text
                   style={[
                     styles.modalButtonText,
-                    { color: isDark ? "#fff" : "#333" },
+                    { color: theme.textSecondary },
                   ]}
                 >
                   Cancel
@@ -389,7 +377,7 @@ const SavedRestaurantsScreen: React.FC = () => {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={confirmRemove}
-                style={[styles.modalButton, styles.modalButtonConfirm]}
+                style={[styles.modalButton, styles.modalButtonConfirm, { backgroundColor: theme.error }]}
               >
                 <Text style={styles.modalButtonText}>Remove</Text>
               </TouchableOpacity>
@@ -444,7 +432,6 @@ const styles = StyleSheet.create({
   },
   filterButtonText: {
     marginLeft: 5,
-    color: "#007aff",
     fontWeight: "600",
   },
   searchInput: {
@@ -524,7 +511,6 @@ const styles = StyleSheet.create({
   },
   itemLink: {
     fontSize: 14,
-    color: "#007aff",
     marginLeft: 5,
     textDecorationLine: "underline",
   },
@@ -578,12 +564,12 @@ const styles = StyleSheet.create({
     // backgroundColor set dynamically
   },
   modalButtonConfirm: {
-    backgroundColor: "#FF6347",
+    // backgroundColor set dynamically
   },
   modalButtonText: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#fff",
+    color: "#fff", 
   },
 });
 
