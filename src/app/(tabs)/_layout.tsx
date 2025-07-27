@@ -62,22 +62,6 @@ export default function TabLayout() {
           ),
           headerShown: true, // Example: Show header on this tab
           headerTitle: "Your Saved Restaurants",
-          headerRight: () => (
-            <Pressable
-              onPress={async () => {
-                await supabase.auth.signOut(); // Logout action
-              }}
-            >
-              {({ pressed }) => (
-                <Ionicons
-                  name="log-out-outline" // Logout icon
-                  size={25}
-                  color={Colors[colorScheme ?? "light"].text} // Adjust color as needed
-                  style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                />
-              )}
-            </Pressable>
-          ),
         }}
       />
 

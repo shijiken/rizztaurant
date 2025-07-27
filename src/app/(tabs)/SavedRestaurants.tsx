@@ -11,6 +11,8 @@ import {
   TextInput,
   ScrollView,
   useColorScheme,
+  Share,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Restaurant } from "@/src/types/Restaurant";
@@ -112,6 +114,45 @@ const SavedRestaurantsScreen: React.FC = () => {
   const cancelRemove = () => {
     setRestaurantToRemove(null);
     setShowConfirmModal(false);
+  };
+
+  // Handle sharing restaurant information
+  const handleShareRestaurant = async (restaurant: Restaurant) => {
+    try {
+      const ratingText = restaurant.rating
+        ? `⭐ ${restaurant.rating.toFixed(1)}`
+        : "";
+      const priceText =
+        restaurant.price_level !== undefined
+          ? `💰 ${getPriceLevelString(restaurant.price_level)}`
+          : "";
+      const cuisineText = restaurant.cuisine ? `🍽️ ${restaurant.cuisine}` : "";
+
+      const shareMessage =
+        `🍴 Check out this restaurant I found on Rizztaurant!\n\n` +
+        `📍 ${restaurant.name}\n` +
+        `${restaurant.address}\n\n` +
+        `${ratingText}${ratingText && priceText ? " • " : ""}${priceText}\n` +
+        `${cuisineText}\n\n` +
+        `${restaurant.mapsUrl ? `View on Maps: ${restaurant.mapsUrl}` : ""}`;
+
+      const result = await Share.share({
+        message: shareMessage,
+        title: `Check out ${restaurant.name}!`,
+      });
+
+      if (result.action === Share.sharedAction) {
+        console.log("Restaurant shared successfully");
+      }
+    } catch (error) {
+      console.error("Error sharing restaurant:", error);
+      Alert.alert("Error", "Failed to share restaurant information");
+    }
+  };
+
+  // Direct share function - goes straight to system share sheet
+  const showShareOptions = (restaurant: Restaurant) => {
+    handleShareRestaurant(restaurant);
   };
 
   // Memoized filtered restaurants
@@ -254,15 +295,28 @@ const SavedRestaurantsScreen: React.FC = () => {
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity
-          onPress={() => handleRemoveSaved(item)}
-          style={[
-            styles.removeButton,
-            { backgroundColor: isDark ? "#3a1f1f" : "#ffe5e5" },
-          ]}
-        >
-          <Ionicons name="trash-outline" size={24} color="#FF6347" />
-        </TouchableOpacity>
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity
+            onPress={() => showShareOptions(item)}
+            style={[
+              styles.actionButton,
+              styles.shareButton,
+              { backgroundColor: isDark ? "#1a3a4f" : "#e6f2ff" },
+            ]}
+          >
+            <Ionicons name="share-outline" size={24} color="#007aff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleRemoveSaved(item)}
+            style={[
+              styles.actionButton,
+              styles.removeButton,
+              { backgroundColor: isDark ? "#3a1f1f" : "#ffe5e5" },
+            ]}
+          >
+            <Ionicons name="trash-outline" size={24} color="#FF6347" />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -528,10 +582,23 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     textDecorationLine: "underline",
   },
-  removeButton: {
+  actionButtonsContainer: {
+    flexDirection: "column",
+    alignItems: "center",
+    marginLeft: 10,
+  },
+  actionButton: {
     padding: 10,
     borderRadius: 5,
-    marginLeft: 10,
+    marginBottom: 8,
+    minWidth: 44,
+    alignItems: "center",
+  },
+  shareButton: {
+    // backgroundColor set dynamically
+  },
+  removeButton: {
+    // backgroundColor set dynamically
   },
   modalOverlay: {
     flex: 1,
