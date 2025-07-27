@@ -56,6 +56,7 @@ export default ({ config }) => ({
       expoPublicSupabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
       expoPublicSupabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       expoPublicGooglePlacesKey: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY,
+      expoPublicGroqAPIKey: process.env.EXPO_PUBLIC_GROQ_API_KEY,
       eas: {
         projectId: "e8a097d2-b52d-438e-ad52-d4d43e170340",
       },

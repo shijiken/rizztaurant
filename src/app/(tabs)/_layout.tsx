@@ -36,7 +36,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index" // Matches the filename src/app/(tabs)/SwipeCards.tsx
         options={{
-          title: "Discover", 
+          title: "Discover",
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
               name={focused ? "restaurant" : "restaurant-outline"}
@@ -46,6 +46,21 @@ export default function TabLayout() {
           // You can add header options specific to this tab if needed
           headerShown: true, // Example: Show header on this tab
           headerTitle: "Discover",
+        }}
+      />
+
+      {/* Tab for Chatbot */}
+      <Tabs.Screen
+        name="chatbot" // Matches the filename src/app/(tabs)/chatbot.tsx
+        options={{
+          title: "Chat",
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name={focused ? "chatbubbles" : "chatbubbles-outline"}
+              color={color}
+            />
+          ),
+          headerShown: false, // Hide header since chatbot has its own header
         }}
       />
 
