@@ -8,9 +8,9 @@ export interface Restaurant {
   imageUrl: string;
   latitude: number;
   longitude: number;
-  rating?: number; // Optional, as not all places have ratings
-  user_ratings_total?: number; // Optional
-  price_level?: string; // CHANGED: Now a string (e.g., "PRICE_LEVEL_MODERATE")
-  cuisine?: string; // Optional
-  distanceKm?: number; // Optional
+  rating?: number; 
+  user_ratings_total?: number; 
+  price_level?: string; 
+  cuisine?: string; 
+  distanceKm?: number; 
 }

@@ -1,13 +1,8 @@
 // src/utils/restaurantData.ts
 
-/**
- * Attempts to infer a single primary cuisine type from Google Places API (New) 'primaryType' and 'types' fields.
- * Prioritizes 'primaryType' if it's a specific food/drink type, then checks the 'types' array.
- * Returns a single formatted string (e.g., "Japanese Restaurant", "Coffee Shop") or undefined.
- */
 export const getCuisineFromPlaceTypes = (
-    primaryType: string | undefined, // NEW: Now accepts primaryType from Places API (New)
-    types: string[] // Existing: accepts types array
+    primaryType: string | undefined, 
+    types: string[] 
   ): string | undefined => {
     // Comprehensive list of food/drink related place types from Google Places API
     // These are kept in lowercase with underscores to match Google's API format
