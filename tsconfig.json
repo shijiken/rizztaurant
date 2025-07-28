@@ -15,5 +15,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-  ]
+, "__tests__/socialSharing.test.js", "__tests__/restaurantInventory.test.ts", "__tests__/restaurantFilter.test.ts"  ]
 }
