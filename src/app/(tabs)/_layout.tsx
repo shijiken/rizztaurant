@@ -90,22 +90,6 @@ export default function TabLayout() {
             backgroundColor: theme.background,
           },
           headerTintColor: theme.text, // Text color for header title
-          headerRight: () => (
-            <Pressable
-              onPress={async () => {
-                await supabase.auth.signOut(); // Logout action
-              }}
-            >
-              {({ pressed }) => (
-                <Ionicons
-                  name="log-out-outline" // Logout icon
-                  size={25}
-                  color={theme.text} // Use theme.text for icon color
-                  style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                />
-              )}
-            </Pressable>
-          ),
         }}
       />
 

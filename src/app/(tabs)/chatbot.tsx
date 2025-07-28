@@ -330,7 +330,7 @@ const Chatbot: React.FC = () => {
             <Text
               style={[styles.welcomeTitle, { color: isDark ? "#fff" : "#333" }]}
             >
-              Welcome to Restaurant Chat! 🍽️
+              Welcome to Rizztaurant Chatbot!
             </Text>
             <Text
               style={[
