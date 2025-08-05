@@ -1,5 +1,4 @@
 // src/screens/Chatbot.tsx
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -27,19 +26,15 @@ const Chatbot: React.FC = () => {
   const isDark = colorScheme === "dark";
   const { session, profile, loading: authLoading } = useAuth();
 
-  // State management
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Refs
   const scrollViewRef = useRef<ScrollView>(null);
   const textInputRef = useRef<TextInput>(null);
 
-  // Get userId from session
   const userId = session?.user?.id || null;
 
-  // Start new conversation
   const startNewConversation = async () => {
     if (!userId) return;
 
@@ -66,7 +61,6 @@ const Chatbot: React.FC = () => {
     }
   };
 
-  // Send user message
   const sendMessage = async () => {
     if (!userId || !inputText.trim() || isLoading) return;
 
@@ -78,12 +72,10 @@ const Chatbot: React.FC = () => {
       created_at: new Date().toISOString(),
     };
 
-    // Add user message to state immediately
     setMessages((prev) => [...prev, userMessage]);
     setInputText("");
     setIsLoading(true);
 
-    // Scroll to bottom after adding user message
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -105,7 +97,6 @@ const Chatbot: React.FC = () => {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Scroll to bottom after adding assistant message
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -126,12 +117,10 @@ const Chatbot: React.FC = () => {
     }
   };
 
-  // Handle restaurant save
   const handleSaveRestaurant = async (restaurantId: string) => {
     if (!userId) return;
 
     try {
-      // Find the restaurant in current suggestions
       let restaurantToSave: RestaurantSuggestion | undefined;
 
       for (const message of messages) {
@@ -148,7 +137,6 @@ const Chatbot: React.FC = () => {
         return;
       }
 
-      // Add to database if it's a new restaurant
       if (restaurantToSave.isNewRestaurant) {
         await ChatbotSupabaseService.addRestaurant({
           id: restaurantToSave.id,
@@ -166,7 +154,6 @@ const Chatbot: React.FC = () => {
         });
       }
 
-      // Save to user's saved restaurants
       const { error } = await supabase.from("user_saved_restaurants").insert({
         user_id: userId,
         restaurant_id: restaurantId,
@@ -189,14 +176,10 @@ const Chatbot: React.FC = () => {
     }
   };
 
-  // Handle restaurant share
   const handleShareRestaurant = (restaurant: RestaurantSuggestion) => {
-    // The sharing functionality is already handled in RestaurantSuggestionCard
-    // This is just a callback if we need to track sharing events
     console.log("Restaurant shared:", restaurant.name);
   };
 
-  // Reset conversation
   const resetConversation = () => {
     Alert.alert(
       "New Conversation",
@@ -215,7 +198,6 @@ const Chatbot: React.FC = () => {
     );
   };
 
-  // Show loading screen while auth is loading or user is not authenticated
   if (authLoading) {
     return (
       <View
@@ -248,7 +230,6 @@ const Chatbot: React.FC = () => {
     );
   }
 
-  // Show error if user is not authenticated
   if (!session || !userId) {
     return (
       <View
@@ -295,7 +276,6 @@ const Chatbot: React.FC = () => {
       style={[styles.container, { backgroundColor: isDark ? "#000" : "#fff" }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* Header */}
       <View
         style={[
           styles.header,
@@ -313,7 +293,6 @@ const Chatbot: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Messages Area */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.messagesContainer}
@@ -363,8 +342,6 @@ const Chatbot: React.FC = () => {
             />
           ))
         )}
-
-        {/* Loading indicator when AI is thinking */}
         {isLoading && messages.length > 0 && (
           <View style={styles.loadingContainer}>
             <View
@@ -390,7 +367,6 @@ const Chatbot: React.FC = () => {
         )}
       </ScrollView>
 
-      {/* Input Area */}
       {messages.length > 0 && (
         <View
           style={[

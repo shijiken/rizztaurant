@@ -1,7 +1,7 @@
 import { Share, Alert } from 'react-native';
 import { Restaurant } from '@/src/types/Restaurant';
 
-// Mock React Native's Share module
+
 jest.mock('react-native', () => ({
   Share: {
     share: jest.fn(),
@@ -12,7 +12,7 @@ jest.mock('react-native', () => ({
   },
 }));
 
-// Extract the sharing logic from SavedRestaurants.tsx
+
 const getPriceLevelString = (level) => {
   if (typeof level === 'string') {
     switch (level) {
@@ -129,7 +129,7 @@ describe('Social Sharing Functionality', () => {
 
     const callArgs = Share.share.mock.calls[0][0];
     expect(callArgs.message).not.toContain('⭐');
-    expect(callArgs.message).toContain('💰 $$'); // Should still show price
+    expect(callArgs.message).toContain('💰 $$');
   });
 
   test('should handle restaurant without price level', async () => {
@@ -143,7 +143,7 @@ describe('Social Sharing Functionality', () => {
     await handleShareRestaurant(restaurantWithoutPrice);
 
     const callArgs = Share.share.mock.calls[0][0];
-    expect(callArgs.message).toContain('⭐ 4.5'); // Should still show rating
+    expect(callArgs.message).toContain('⭐ 4.5'); 
     expect(callArgs.message).not.toContain('💰');
   });
 
@@ -159,7 +159,8 @@ describe('Social Sharing Functionality', () => {
 
     const callArgs = Share.share.mock.calls[0][0];
     expect(callArgs.message).not.toContain('🍽️');
-    expect(callArgs.message).toContain('⭐ 4.5'); // Should still show other details
+    expect(callArgs.message).toContain('⭐ 4.5'); 
+    
   });
 
   test('should handle restaurant without maps URL', async () => {
@@ -174,7 +175,7 @@ describe('Social Sharing Functionality', () => {
 
     const callArgs = Share.share.mock.calls[0][0];
     expect(callArgs.message).not.toContain('View on Maps:');
-    expect(callArgs.message).toContain('📍 Pizza Palace'); // Should still show other details
+    expect(callArgs.message).toContain('📍 Pizza Palace'); 
   });
 
   test('should handle sharing errors gracefully', async () => {

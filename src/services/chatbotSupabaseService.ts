@@ -165,15 +165,14 @@ export class ChatbotSupabaseService {
     const { data, error } = await supabase
       .from("restaurants")
       .select("*")
-      .gte("rating", 4.0) // Rating 4.0 or higher
-      .gte("user_ratings_total", 50) // At least 50 reviews
+      .gte("rating", 4.0) 
+      .gte("user_ratings_total", 50) 
       .order("rating", { ascending: false })
       .order("user_ratings_total", { ascending: false })
       .limit(limit);
 
     if (error) {
       console.error("Failed to get popular restaurants:", error);
-      // Fallback: get any restaurants if popular query fails
       const { data: fallbackData, error: fallbackError } = await supabase
         .from("restaurants")
         .select("*")
@@ -293,7 +292,6 @@ export class ChatbotSupabaseService {
 
     if (error) {
       console.error("Failed to add restaurant to database:", error);
-      // Don't throw error here - we can still show the suggestion even if DB insert fails
       return null;
     }
 
@@ -381,7 +379,6 @@ export class ChatbotSupabaseService {
       .single();
 
     if (error && error.code !== "PGRST116") {
-      // PGRST116 is "not found" error
       console.error("Error checking if restaurant is saved:", error);
       return false;
     }

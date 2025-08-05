@@ -1,5 +1,4 @@
 // src/lib/chatbotService.tsx
-
 import { GroqService } from "../services/groqService";
 import { ChatbotSupabaseService } from "../services/chatbotSupabaseService";
 import { GooglePlacesService } from "./googlePlacesService";
@@ -18,30 +17,24 @@ export class ChatbotService {
 
   static async startNewConversation(userId: string): Promise<string> {
     try {
-      // Create new conversation
       const conversation = await ChatbotSupabaseService.createConversation(
         userId
       );
       this.conversationId = conversation.id;
 
-      // Reset context and history
       this.chatContext = {};
       this.conversationHistory = [];
 
-      // Load user preferences
       this.userPreferences =
         await ChatbotSupabaseService.analyzeUserPreferences(userId);
 
-      // Generate greeting message using enhanced service
       const greeting = await this.generateGreeting(userId);
 
-      // Add greeting to conversation history
       this.conversationHistory.push({
         role: "assistant",
         content: greeting,
       });
 
-      // Save greeting to database
       await ChatbotSupabaseService.addMessage(
         conversation.id,
         "assistant",
@@ -69,23 +62,19 @@ export class ChatbotService {
         );
       }
 
-      // Add user message to conversation history
       this.conversationHistory.push({
         role: "user",
         content: message,
       });
 
-      // Save user message to database
       await ChatbotSupabaseService.addMessage(
         this.conversationId,
         "user",
         message
       );
 
-      // Update context based on user message
       this.updateContextFromMessage(message);
 
-      // Check if we should provide suggestions based on conversation state
       const shouldProvide =
         this.shouldProvideSuggestions() ||
         GroqService.shouldProvideRecommendations(this.conversationHistory) ||
@@ -93,28 +82,23 @@ export class ChatbotService {
 
       let suggestions: RestaurantSuggestion[] = [];
 
-      // Get available restaurants for context
       const availableRestaurants = await this.getAvailableRestaurants();
 
-      // Generate response using enhanced GroqService
       const response = await GroqService.generateChatbotResponse(
         this.conversationHistory,
         this.formatUserPreferences(),
         availableRestaurants
       );
 
-      // If response indicates recommendations or we've determined we should provide them
       if (shouldProvide || this.responseIndicatesRecommendations(response)) {
         suggestions = await this.generateRestaurantSuggestions(userId);
       }
 
-      // Add assistant response to conversation history
       this.conversationHistory.push({
         role: "assistant",
         content: response,
       });
 
-      // Save assistant response to database
       await ChatbotSupabaseService.addMessage(
         this.conversationId,
         "assistant",
@@ -125,11 +109,9 @@ export class ChatbotService {
     } catch (error) {
       console.error("Error sending message:", error);
 
-      // Fallback response
       const fallbackResponse =
         "I apologize, but I'm having trouble processing your request right now. Could you please try again or tell me what kind of food you're craving?";
 
-      // Add fallback to history
       this.conversationHistory.push({
         role: "assistant",
         content: fallbackResponse,
@@ -143,7 +125,6 @@ export class ChatbotService {
     const preferences = this.userPreferences;
 
     try {
-      // Use enhanced greeting generation if user has history
       if (
         preferences &&
         (preferences.totalSaved > 0 || preferences.totalSwiped > 5)
@@ -155,7 +136,7 @@ export class ChatbotService {
         );
 
         return await GroqService.createPersonalizedGreeting(
-          "there", // Replace with actual username if available
+          "there",
           savedRestaurants || [],
           recentSwipes || []
         );
@@ -164,7 +145,6 @@ export class ChatbotService {
       console.error("Error generating personalized greeting:", error);
     }
 
-    // Fallback to simple greeting
     const systemPrompt = `You are a friendly restaurant recommendation chatbot for Singapore. Generate a warm, welcoming greeting that:
 1. Welcomes the user warmly
 2. Briefly explains you help find great restaurants
@@ -224,15 +204,13 @@ ${
 
   private static async getAvailableRestaurants(): Promise<any[]> {
     try {
-      // Get restaurants based on current context
       if (this.chatContext.area) {
         return await ChatbotSupabaseService.searchRestaurantsByArea(
           this.chatContext.area,
-          15 // Get more for better context
+          15
         );
       }
 
-      // Get general popular restaurants if no area specified
       return await ChatbotSupabaseService.getPopularRestaurants(15);
     } catch (error) {
       console.error("Error getting available restaurants:", error);
@@ -258,7 +236,6 @@ ${
   private static updateContextFromMessage(message: string): void {
     const lowerMessage = message.toLowerCase();
 
-    // Extract area with more comprehensive keywords
     if (!this.chatContext.area) {
       const areaKeywords = [
         "orchard",
@@ -304,7 +281,6 @@ ${
       }
     }
 
-    // Extract budget with more variations
     if (!this.chatContext.budget) {
       if (
         lowerMessage.includes("cheap") ||
@@ -332,7 +308,6 @@ ${
       }
     }
 
-    // Extract travel time
     if (!this.chatContext.travelTime) {
       if (lowerMessage.includes("15") || lowerMessage.includes("fifteen")) {
         this.chatContext.travelTime = "15min";
@@ -356,7 +331,6 @@ ${
       }
     }
 
-    // Extract mood/cuisine preferences with more options
     if (!this.chatContext.mood) {
       const cuisines = [
         "chinese",
@@ -395,7 +369,6 @@ ${
         }
       }
 
-      // Check for food types and moods
       const foodMoods = [
         "spicy",
         "sweet",
@@ -428,7 +401,6 @@ ${
       }
     }
 
-    // Extract occasion with more options
     if (!this.chatContext.occasion) {
       if (lowerMessage.includes("date") || lowerMessage.includes("romantic")) {
         this.chatContext.occasion = "date";
@@ -466,16 +438,14 @@ ${
   private static shouldProvideSuggestions(): boolean {
     const context = this.chatContext;
 
-    // More flexible criteria for providing suggestions
     const hasArea = !!(context.area && context.area !== "any area");
     const hasPreference = !!(
       context.mood ||
       context.budget ||
       context.occasion
     );
-    const hasBasicInfo = !!(context.area || context.budget); // Even "any area" counts
+    const hasBasicInfo = !!(context.area || context.budget);
 
-    // Provide suggestions if we have area + preference, or if conversation has gone on long enough
     return (
       (hasArea && hasPreference) ||
       (hasBasicInfo && this.conversationHistory.length >= 6) ||
@@ -489,7 +459,6 @@ ${
     try {
       const suggestions: RestaurantSuggestion[] = [];
 
-      // First, search existing restaurants in database
       const searchArea =
         this.chatContext.area === "any area" ? "" : this.chatContext.area;
 
@@ -500,7 +469,6 @@ ${
           ...existingRestaurants.map((r) => ({ ...r, isNewRestaurant: false }))
         );
       } else {
-        // Get popular restaurants if no specific area
         const popularRestaurants =
           await ChatbotSupabaseService.getPopularRestaurants(8);
         suggestions.push(
@@ -508,27 +476,23 @@ ${
         );
       }
 
-      // Then, search for new restaurants using Google Places if we have area context
       if (
         this.chatContext.area &&
         this.chatContext.area !== "any area" &&
         suggestions.length < 6
       ) {
         try {
-          // Geocode the area first
           const location = await GooglePlacesService.geocodeArea(
             this.chatContext.area
           );
 
           if (location) {
-            // Build search query based on context
             let searchQuery = "restaurant";
             if (this.chatContext.mood && this.chatContext.mood !== "any") {
               searchQuery = `${this.chatContext.mood} restaurant`;
             }
 
-            // Determine radius based on travel time
-            let radius = 5000; // default 5km
+            let radius = 5000;
             if (this.chatContext.travelTime === "15min") radius = 2000;
             else if (this.chatContext.travelTime === "30min") radius = 5000;
             else if (this.chatContext.travelTime === "1hour") radius = 15000;
@@ -541,9 +505,7 @@ ${
                 radius
               );
 
-            // Add new restaurants to database and suggestions
             for (const restaurant of newRestaurants.slice(0, 4)) {
-              // Limit external results
               await ChatbotSupabaseService.addRestaurant(restaurant);
               suggestions.push(restaurant);
             }
@@ -553,20 +515,16 @@ ${
         }
       }
 
-      // Filter and enhance suggestions based on preferences
       let filteredSuggestions =
         this.filterSuggestionsByPreferences(suggestions);
 
-      // If we have very few results, try to expand criteria
       if (filteredSuggestions.length < 3) {
-        // Try relaxing some filters
         filteredSuggestions = this.filterSuggestionsByPreferences(
           suggestions,
           true
         );
       }
 
-      // Limit to top 6 suggestions
       return filteredSuggestions.slice(0, 6);
     } catch (error) {
       console.error("Error generating suggestions:", error);
@@ -582,7 +540,6 @@ ${
 
     if (this.userPreferences && !relaxed) {
       filtered = filtered.filter((restaurant) => {
-        // Filter out strongly disliked cuisines (but not in relaxed mode)
         if (
           restaurant.cuisine &&
           this.userPreferences!.dislikedCuisines.includes(
@@ -592,7 +549,6 @@ ${
           return false;
         }
 
-        // Filter by budget preference
         if (this.chatContext.budget && restaurant.price_level) {
           const budgetMap = {
             cheap: ["$", "Free"],
@@ -608,7 +564,6 @@ ${
           }
         }
 
-        // In strict mode, prefer higher rated restaurants
         if (
           this.userPreferences!.averageRating > 4.0 &&
           restaurant.rating &&
@@ -621,9 +576,7 @@ ${
       });
     }
 
-    // Sort by relevance and rating
     return filtered.sort((a, b) => {
-      // Prioritize restaurants matching mood/cuisine
       const aMoodMatch =
         this.chatContext.mood &&
         a.cuisine?.toLowerCase().includes(this.chatContext.mood.toLowerCase());
@@ -634,7 +587,6 @@ ${
       if (aMoodMatch && !bMoodMatch) return -1;
       if (!aMoodMatch && bMoodMatch) return 1;
 
-      // Then sort by rating
       if (a.rating && b.rating) {
         return b.rating - a.rating;
       }
@@ -658,3 +610,4 @@ ${
     this.conversationHistory = [];
   }
 }
+

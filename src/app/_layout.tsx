@@ -65,13 +65,11 @@ function RootLayoutNav() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {/* Wrap everything with your custom ThemeProvider first */}
       <ThemeProvider>
         <ThemedNavigationWrapper>
           <AuthProvider>
             <SavedRestaurantsProvider>
               <ThemedLayout>
-                {/* Render the separated InnerAppNavigator component */}
                 <InnerAppNavigator />
               </ThemedLayout>
             </SavedRestaurantsProvider>

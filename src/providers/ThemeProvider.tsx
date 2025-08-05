@@ -8,7 +8,25 @@ import React, {
 } from "react";
 import { Appearance, ColorSchemeName } from "react-native";
 
-// Define your theme colors
+export interface Theme {
+  background: string;
+  surface: string;
+  card: string;
+  text: string;
+  textSecondary: string;
+  textTertiary: string;
+  primary: string;
+  primaryDark: string;
+  success: string;
+  warning: string;
+  error: string;
+  border: string;
+  shadow: string;
+  overlay: string;
+  statusBarStyle: "light-content" | "dark-content";
+  navigationBarStyle: "light" | "dark"; 
+}
+
 export const lightTheme = {
   background: "#ffffff",
   surface: "#f8f9fa",
@@ -24,7 +42,6 @@ export const lightTheme = {
   border: "#e1e5e9",
   shadow: "#000000",
   overlay: "rgba(0, 0, 0, 0.5)",
-  // Status bar and navigation
   statusBarStyle: "dark-content" as const,
   navigationBarStyle: "light" as const,
 };
@@ -44,12 +61,10 @@ export const darkTheme = {
   border: "#38383a",
   shadow: "#000000",
   overlay: "rgba(0, 0, 0, 0.7)",
-  // Status bar and navigation
   statusBarStyle: "light-content" as const,
   navigationBarStyle: "dark" as const,
 };
 
-export type Theme = typeof lightTheme;
 export type ThemeMode = "light" | "dark" | "system";
 
 interface ThemeContextType {
@@ -72,7 +87,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     Appearance.getColorScheme()
   );
 
-  // Listen to system theme changes
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
       setSystemColorScheme(colorScheme);
@@ -81,7 +95,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     return () => subscription?.remove();
   }, []);
 
-  // Determine the current theme
   const getEffectiveTheme = (): "light" | "dark" => {
     if (themeMode === "system") {
       return systemColorScheme === "dark" ? "dark" : "light";
@@ -95,7 +108,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   const toggleTheme = () => {
     if (themeMode === "system") {
-      // If currently following system, switch to opposite of current system theme
       setThemeMode(systemColorScheme === "dark" ? "light" : "dark");
     } else if (themeMode === "light") {
       setThemeMode("dark");

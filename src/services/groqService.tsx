@@ -24,8 +24,8 @@ export class GroqService {
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages: messages,
-          max_tokens: 1200, // Increased for more comprehensive responses
-          temperature: 0.6, // Slightly lower for more consistent responses
+          max_tokens: 1200, 
+          temperature: 0.6, 
           top_p: 0.9,
           stop: ["\n\nUser:", "\n\nAssistant:", "---"],
         }),
@@ -132,9 +132,6 @@ Keep the response concise and actionable for making restaurant recommendations.
     return await this.sendMessage(messages);
   }
 
-  /**
-   * Enhanced chatbot response that handles conversation flow and prevents repetition
-   */
   static async generateChatbotResponse(
     conversationHistory: GroqMessage[],
     userPreferences?: string,
@@ -142,7 +139,7 @@ Keep the response concise and actionable for making restaurant recommendations.
   ): Promise<string> {
     // Analyze conversation to extract context and avoid repetition
     const conversationContext = conversationHistory
-      .slice(-6) // Last 6 messages for context
+      .slice(-6)
       .map((msg) => `${msg.role}: ${msg.content}`)
       .join("\n");
 
@@ -207,9 +204,6 @@ Respond naturally and conversationally. Focus on being helpful and efficient.`;
     return await this.sendMessage(messages);
   }
 
-  /**
-   * Extract information that has already been gathered from the conversation
-   */
   private static extractGatheredInfo(conversationHistory: GroqMessage[]): any {
     const info: any = {
       cuisine: null,
@@ -286,9 +280,6 @@ Respond naturally and conversationally. Focus on being helpful and efficient.`;
     return info;
   }
 
-  /**
-   * Format gathered information for the system prompt
-   */
   private static formatGatheredInfo(info: any): string {
     const parts = [];
 
@@ -306,9 +297,6 @@ Respond naturally and conversationally. Focus on being helpful and efficient.`;
       : "No specific preferences gathered yet";
   }
 
-  /**
-   * Create a personalized greeting message for the user based on their restaurant history
-   */
   static async createPersonalizedGreeting(
     username: string,
     savedRestaurants: any[],
@@ -345,9 +333,6 @@ Don't mention specific restaurant names, just reference their general activity l
     return await this.sendMessage(messages);
   }
 
-  /**
-   * Check if enough information has been gathered to make recommendations
-   */
   static shouldProvideRecommendations(
     conversationHistory: GroqMessage[]
   ): boolean {
@@ -357,9 +342,6 @@ Don't mention specific restaurant names, just reference their general activity l
     return !!(info.cuisine && (info.area || info.budget));
   }
 
-  /**
-   * Check if the conversation is getting repetitive
-   */
   static isConversationRepetitive(conversationHistory: GroqMessage[]): boolean {
     if (conversationHistory.length < 4) return false;
 
@@ -383,9 +365,6 @@ Don't mention specific restaurant names, just reference their general activity l
     );
   }
 
-  /**
-   * Check if the Groq service is available
-   */
   static async checkServiceHealth(): Promise<boolean> {
     try {
       const testMessages: GroqMessage[] = [

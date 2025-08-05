@@ -1,6 +1,6 @@
 // src/lib/storage.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Restaurant } from "@/src/types/Restaurant"; // Assuming Restaurant type is accessible
+import { Restaurant } from "@/src/types/Restaurant"; 
 
 const SAVED_RESTAURANTS_STORAGE_KEY = 'saved_restaurants_offline_data';
 
@@ -25,7 +25,7 @@ export const loadSavedRestaurantsFromLocal = async (): Promise<Restaurant[]> => 
   } catch (e: any) {
     console.error("StorageUtil: Failed to load saved restaurants from AsyncStorage:", e);
   }
-  return []; // Return an empty array on error or no data
+  return []; 
 };
 
 export const clearSavedRestaurantsFromLocal = async (): Promise<void> => {

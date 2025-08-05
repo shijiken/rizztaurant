@@ -65,7 +65,7 @@ const getPriceLevelString = (level?: number | string): string => {
 
 const SavedRestaurantsScreen: React.FC = () => {
   const { savedRestaurants, removeSavedRestaurant } = useSavedRestaurants();
-  const { theme, isDark } = useTheme(); // Use your custom theme hook
+  const { theme, isDark } = useTheme(); 
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [restaurantToRemove, setRestaurantToRemove] =
@@ -147,7 +147,6 @@ const SavedRestaurantsScreen: React.FC = () => {
     }
   };
 
-  // Direct share function - goes straight to system share sheet
   const showShareOptions = (restaurant: Restaurant) => {
     handleShareRestaurant(restaurant);
   };
@@ -581,10 +580,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   shareButton: {
-    // backgroundColor set dynamically
   },
   removeButton: {
-    // backgroundColor set dynamically
   },
   modalOverlay: {
     flex: 1,
@@ -628,10 +625,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalButtonCancel: {
-    // backgroundColor set dynamically
   },
   modalButtonConfirm: {
-    // backgroundColor set dynamically
   },
   modalButtonText: {
     fontSize: 16,

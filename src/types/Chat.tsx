@@ -29,7 +29,7 @@ export interface RestaurantSuggestion {
   longitude?: number;
   distance_km?: number;
   user_ratings_total?: number;
-  isNewRestaurant?: boolean; // Flag to indicate if it's from external API
+  isNewRestaurant?: boolean; 
 }
 
 export interface UserPreferences {

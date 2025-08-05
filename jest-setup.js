@@ -1,12 +1,12 @@
 // jest-setup.js
 import '@testing-library/jest-native/extend-expect';
 
-// Mock AsyncStorage
+
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
-// Mock Supabase
+
 jest.mock('@/src/lib/supabase', () => ({
   supabase: {
     from: jest.fn(() => ({
@@ -19,7 +19,7 @@ jest.mock('@/src/lib/supabase', () => ({
   },
 }));
 
-// Mock React Native modules
+
 jest.mock('react-native', () => ({
   Alert: {
     alert: jest.fn(),

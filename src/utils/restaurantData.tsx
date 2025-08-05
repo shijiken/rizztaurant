@@ -16,15 +16,14 @@ export const getCuisineFromPlaceTypes = (
       "ice_cream_shop", "indian_restaurant", "indonesian_restaurant", "italian_restaurant", "japanese_restaurant",
       "juice_shop", "korean_restaurant", "lebanese_restaurant", "meal_delivery", "meal_takeaway",
       "mediterranean_restaurant", "mexican_restaurant", "middle_eastern_restaurant", "pizza_restaurant", "pub",
-      "ramen_restaurant", "restaurant", // Keep 'restaurant' as a general type if more specific ones aren't found
-      "sandwich_shop", "seafood_restaurant", "spanish_restaurant", "steak_house", "sushi_restaurant",
+      "ramen_restaurant", "restaurant", "sandwich_shop", "seafood_restaurant", "spanish_restaurant", "steak_house", "sushi_restaurant",
       "tea_house", "thai_restaurant", "turkish_restaurant", "vegan_restaurant", "vegetarian_restaurant",
       "vietnamese_restaurant", "wine_bar"
     ];
   
     const lowerCaseTypes = types.map(type => type.toLowerCase());
   
-    // 1. Prioritize primaryType if it's a specific food/drink type
+    // Prioritise primaryType if it's a specific food/drink type
     if (primaryType) {
       const lowerCasePrimaryType = primaryType.toLowerCase();
       if (specificFoodDrinkTypes.includes(lowerCasePrimaryType)) {
@@ -36,7 +35,7 @@ export const getCuisineFromPlaceTypes = (
       }
     }
   
-    // 2. Fallback to checking the 'types' array for specific food/drink types
+    // Fallback to checking the 'types' array for specific food/drink types
     for (const preferredType of specificFoodDrinkTypes) {
       if (lowerCaseTypes.includes(preferredType)) {
         return preferredType
@@ -47,6 +46,6 @@ export const getCuisineFromPlaceTypes = (
       }
     }
   
-    // 3. If no specific food/drink type is found in primaryType or types, return undefined
+    // If no specific food/drink type is found in primaryType or types, return undefined
     return undefined;
   };

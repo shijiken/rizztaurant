@@ -1,15 +1,10 @@
 // src/app/(tabs)/_layout.tsx
 import React from "react";
 import { Link, Tabs } from "expo-router";
-import { Pressable } from "react-native";
-import { Ionicons } from "@expo/vector-icons"; // Import Ionicons for tab bar icons
-// import Colors from "@/src/constants/Colors"; // <-- REMOVE THIS IMPORT
-// import { useColorScheme } from "@/src/components/useColorScheme"; // <-- REMOVE THIS IMPORT
+import { Ionicons } from "@expo/vector-icons"; 
 import { useClientOnlyValue } from "@/src/components/useClientOnlyValue";
-
-// Import your custom useTheme hook
 import { useTheme } from "@/src/providers/ThemeProvider";
-import { supabase } from "@/src/lib/supabase"; 
+
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof Ionicons>["name"];
@@ -27,18 +22,18 @@ export default function TabLayout() {
       screenOptions={{
 
         tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: isDark ? theme.textTertiary : Colors.light.gray, // Adjust inactive tint based on theme
+        tabBarInactiveTintColor: isDark ? theme.textTertiary : Colors.light.gray, 
 
-        headerShown: useClientOnlyValue(false, true), // header shown if not on web client
+        headerShown: useClientOnlyValue(false, true), 
         tabBarStyle: {
-          backgroundColor: theme.surface, // Apply theme's surface color to tab bar background
-          borderTopColor: theme.border, // Apply theme's border color
+          backgroundColor: theme.surface, 
+          borderTopColor: theme.border,
         },
       }}
     >
 
       <Tabs.Screen
-        name="index" // Matches the filename src/app/(tabs)/SwipeCards.tsx
+        name="index" 
         options={{
           title: "Discover",
           tabBarIcon: ({ color, focused }) => (
@@ -47,19 +42,17 @@ export default function TabLayout() {
               color={color}
             />
           ),
-          headerShown: true, // Example: Show header on this tab
+          headerShown: true, 
           headerTitle: "Discover",
-          // Apply header styling based on theme
           headerStyle: {
             backgroundColor: theme.background,
           },
-          headerTintColor: theme.text, // Text color for header title
+          headerTintColor: theme.text, 
         }}
       />
 
-      {/* Tab for Chatbot */}
       <Tabs.Screen
-        name="chatbot" // Matches the filename src/app/(tabs)/chatbot.tsx
+        name="chatbot" 
         options={{
           title: "Chat",
           tabBarIcon: ({ color, focused }) => (
@@ -68,50 +61,32 @@ export default function TabLayout() {
               color={color}
             />
           ),
-          headerShown: false, // Hide header since chatbot has its own header
+          headerShown: false, 
         }}
       />
 
-      {/* Tab for SavedRestaurantsScreen (now SavedRestaurants.tsx) */}
       <Tabs.Screen
-        name="SavedRestaurants" // Matches the filename src/app/(tabs)/SavedRestaurants.tsx
+        name="SavedRestaurants" 
         options={{
-          title: "Saved", // Matches your old "SavedTab" title
+          title: "Saved", 
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon
               name={focused ? "bookmark" : "bookmark-outline"}
               color={color}
             />
           ),
-          headerShown: true, // Example: Show header on this tab
+          headerShown: true, 
           headerTitle: "Your Saved Restaurants",
-          // Apply header styling based on theme
           headerStyle: {
             backgroundColor: theme.background,
           },
-          headerTintColor: theme.text, // Text color for header title
-          headerRight: () => (
-            <Pressable
-              onPress={async () => {
-                await supabase.auth.signOut(); // Logout action
-              }}
-            >
-              {({ pressed }) => (
-                <Ionicons
-                  name="log-out-outline" // Logout icon
-                  size={25}
-                  color={theme.text} // Use theme.text for icon color
-                  style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                />
-              )}
-            </Pressable>
-          ),
+          headerTintColor: theme.text,
         }}
       />
 
       {/* Tab for SettingsScreen (now settings.tsx) */}
       <Tabs.Screen
-        name="settings" // Matches the filename src/app/(tabs)/settings.tsx
+        name="settings" 
         options={{
           title: "Settings",
           tabBarIcon: ({ color, focused }) => (
@@ -120,13 +95,12 @@ export default function TabLayout() {
               color={color}
             />
           ),
-          headerShown: true, // Example: Show header on this tab
+          headerShown: true, 
           headerTitle: "App Settings",
-          // Apply header styling based on theme
           headerStyle: {
             backgroundColor: theme.background,
           },
-          headerTintColor: theme.text, // Text color for header title
+          headerTintColor: theme.text,
         }}
       />
     </Tabs>
@@ -135,9 +109,9 @@ export default function TabLayout() {
 
 const Colors = {
   light: {
-    gray: 'gray', // Define a default gray for light mode inactive tint
+    gray: 'gray', 
   },
   dark: {
-    gray: 'gray', // Define a default gray for dark mode inactive tint
+    gray: 'gray', 
   }
 };

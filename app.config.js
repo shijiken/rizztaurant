@@ -27,7 +27,7 @@ export default ({ config }) => ({
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#ffffff",
       },
-      package: "com.shijiken.rizztaurant", // ← MUST be unique across the Play Store
+      package: "com.shijiken.rizztaurant",
       versionCode: 1,    
       "permissions": ["LOCATION"],
   

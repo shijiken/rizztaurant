@@ -43,8 +43,8 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.4;
 const GOOGLE_PLACES_API_KEY =
   Constants.expoConfig?.extra?.expoPublicGooglePlacesKey;
 
-// HELPER FUNCTION FOR LOCATION WITH TIMEOUT
-const getLocationWithTimeout = async (options: Location.LocationOptions, timeoutMs: number): Promise<Location.LocationObject> => {
+
+  const getLocationWithTimeout = async (options: Location.LocationOptions, timeoutMs: number): Promise<Location.LocationObject> => {
   return Promise.race([
     Location.getCurrentPositionAsync(options),
     new Promise<Location.LocationObject>((_, reject) =>
@@ -190,25 +190,23 @@ const SwipeCardsScreen: React.FC = () => {
 
         if (Platform.OS === 'android') {
             try {
-                // FIRST: Try with LOW accuracy and a short timeout for quick results
                 location = await getLocationWithTimeout(
                   { accuracy: Location.Accuracy.Low },
-                  7000 // 7 seconds timeout for low accuracy
+                  7000 
                 );
                 console.log("DEBUG: Got low accuracy location (Android).");
             } catch (lowAccuracyError: any) {
                 console.warn("DEBUG: Low accuracy location failed or timed out (Android), trying high accuracy. Error:", lowAccuracyError.message);
-                // IF LOW FAILS: Fallback to High accuracy with a longer timeout
                 location = await getLocationWithTimeout(
                   { accuracy: Location.Accuracy.High },
-                  15000 // 15 seconds timeout for high accuracy
+                  15000 
                 );
                 console.log("DEBUG: Got high accuracy location (Android).");
             }
         } else { // iOS or other platforms, use High accuracy directly with helper
             location = await getLocationWithTimeout(
                 { accuracy: Location.Accuracy.High },
-                15000 // 15 seconds timeout for iOS/High accuracy
+                15000 
             );
             console.log("DEBUG: Got high accuracy location (iOS/Other).");
         }
@@ -279,11 +277,11 @@ const SwipeCardsScreen: React.FC = () => {
             locationRestriction: {
               circle: {
                 center: { latitude, longitude },
-                radius: 2000 // 5km radius
+                radius: 2000 // Edit radius here
               }
             },
             includedTypes: ["restaurant", "cafe", "bar"],
-            maxResultCount: 10 // Max results per call (API limit)
+            maxResultCount: 10 // Max results per call
           };
 
           const nearbyResponse = await fetch(nearbySearchUrl, {

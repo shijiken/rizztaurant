@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PriceLevel, Rating, FilterOptions } from '@/src/app/(tabs)/SavedRestaurants'; // Import types
+import { PriceLevel, Rating, FilterOptions } from '@/src/app/(tabs)/SavedRestaurants'; 
 
 interface FilterModalProps {
   visible: boolean;
@@ -44,7 +44,6 @@ const FilterModal: React.FC<FilterModalProps> = ({
   const [maxPriceLevel, setMaxPriceLevel] = useState<PriceLevel>(currentFilters.maxPriceLevel);
 
   useEffect(() => {
-    // Update internal state when currentFilters prop changes
     setSelectedCuisine(currentFilters.cuisine);
     setMinRating(currentFilters.minRating);
     setMaxPriceLevel(currentFilters.maxPriceLevel);
@@ -55,7 +54,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
       cuisine: selectedCuisine,
       minRating: minRating,
       maxPriceLevel: maxPriceLevel,
-      searchQuery: currentFilters.searchQuery, // Keep search query from parent
+      searchQuery: currentFilters.searchQuery, 
     });
   };
 
@@ -63,7 +62,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
     setSelectedCuisine(null);
     setMinRating(null);
     setMaxPriceLevel(null);
-    onClearFilters(); // Also clear in parent
+    onClearFilters(); 
   };
 
   return (
@@ -85,8 +84,6 @@ const FilterModal: React.FC<FilterModalProps> = ({
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
             {/* Cuisine Filter */}
             <Text style={styles.filterSectionTitle}>Restaurant Type</Text>
-            {/* The optionsContainer is already inside a ScrollView,
-                so it will automatically scroll if content overflows */}
             <View style={styles.optionsContainer}>
               {allCuisines.map((cuisine) => (
                 <TouchableOpacity
@@ -183,7 +180,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: '80%', // Limit modal height
+    maxHeight: '80%', 
     width: '100%',
     ...Platform.select({
       ios: {
@@ -212,10 +209,10 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   scrollView: {
-    flexGrow: 1, // Allows the ScrollView to grow and take available space
+    flexGrow: 1, 
   },
   scrollViewContent: {
-    paddingBottom: 20, // Add some padding at the bottom of the scrollable content
+    paddingBottom: 20, 
   },
   filterSectionTitle: {
     fontSize: 18,
@@ -226,7 +223,7 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap', // Allow items to wrap to the next line
+    flexWrap: 'wrap', 
     marginBottom: 10,
   },
   optionButton: {
